@@ -1,0 +1,18 @@
+# Gadgeto!
+
+Author:     Thomas Schaffer
+Language:   Golang
+License:    MIT
+
+Gadgeto! is a collection of tools that aim to facilitate the development of
+REST APIs in Go.
+These tools are based on and enrich popular open-source solutions, to provide
+higher-level functionalities.
+
+Components:
+    - Tonic: Based on the REST framework Gin (https://github.com/gin-gonic/gin),
+                tonic lets you write simpler handler functions, and handles
+                repetitive tasks for you (parameter binding, error handling).
+
+    - Zesty: Based on Gorp (https://github.com/go-gorp/gorp), zesty abstracts
+                DB specifics for easy (nested) transaction management.
