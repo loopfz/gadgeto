@@ -55,6 +55,41 @@ type DBProvider interface {
 }
 
 /*
+ * FUNCTIONS
+ */
+
+func NewDB(dbmap *gorp.DbMap) DB {
+	return &zestydb{DbMap: dbmap}
+}
+
+func RegisterDB(db DB, name string) error {
+	dblock.Lock()
+	defer dblock.Unlock()
+
+	_, ok := dbs[name]
+	if ok {
+		return fmt.Errorf("DB name conflict '%s'", name)
+	}
+
+	dbs[name] = db
+
+	return nil
+}
+
+func NewDBProvider(name string) (DBProvider, error) {
+	dblock.RLock()
+	defer dblock.RUnlock()
+	db, ok := dbs[name]
+	if !ok {
+		return nil, fmt.Errorf("No such database '%s'", name)
+	}
+	return &zestyprovider{
+		current: db,
+		db:      db,
+	}, nil
+}
+
+/*
  * PROVIDER IMPLEMENTATION
  */
 
@@ -141,19 +176,6 @@ func (zp *zestyprovider) resetTx() {
 	zp.tx = nil
 }
 
-func NewDBProvider(name string) (DBProvider, error) {
-	dblock.RLock()
-	defer dblock.RUnlock()
-	db, ok := dbs[name]
-	if !ok {
-		return nil, fmt.Errorf("No such database '%s'", name)
-	}
-	return &zestyprovider{
-		current: db,
-		db:      db,
-	}, nil
-}
-
 /*
  * DATABASE IMPLEMENTATION
  */
@@ -176,22 +198,4 @@ func (zd *zestydb) Ping() error {
 
 func (zd *zestydb) Stats() sql.DBStats {
 	return zd.DbMap.Db.Stats()
-}
-
-func RegisterDB(db DB, name string) error {
-	dblock.Lock()
-	defer dblock.Unlock()
-
-	_, ok := dbs[name]
-	if ok {
-		return fmt.Errorf("DB name conflict '%s'", name)
-	}
-
-	dbs[name] = db
-
-	return nil
-}
-
-func NewDB(dbmap *gorp.DbMap) DB {
-	return &zestydb{DbMap: dbmap}
 }

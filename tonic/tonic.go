@@ -32,6 +32,21 @@ const (
 	path_tag  = "path"
 )
 
+// An ErrorHook lets you interpret errors returned by your handlers.
+// After analysis, the hook should return a suitable http status code and
+// error payload.
+// This lets you deeply inspect custom error types.
+type ErrorHook func(error) (int, interface{})
+
+var (
+	errorHook ErrorHook = func(e error) (int, interface{}) { return 400, e.Error() }
+)
+
+// SetErrorHook lets you set your own error hook.
+func SetErrorHook(eh ErrorHook) {
+	errorHook = eh
+}
+
 // Handler returns a wrapping gin-compatible handler that calls the tonic handler
 // passed in parameter.
 // The tonic handler may use the following signature:
@@ -73,11 +88,6 @@ func Handler(f interface{}, retcode int) func(*gin.Context) {
 	errIdx := 0
 	if hasOut {
 		errIdx += 1
-		/*
-			if ftype.Out(0).Kind() != reflect.Ptr && ftype.Out(0).Kind() != reflect.Slice {
-				panic(fmt.Sprintf("Unsupported type for handler output parameter: %v. Should be ptr.", ftype.Out(0)))
-			}
-		*/
 	}
 	typeOfError := reflect.TypeOf((*error)(nil)).Elem()
 	if !ftype.Out(errIdx).Implements(typeOfError) {
@@ -128,7 +138,12 @@ func Handler(f interface{}, retcode int) func(*gin.Context) {
 		}
 		// Raised error, handle it
 		if errOut != nil {
-			c.JSON(400, gin.H{`error`: errOut.(error).Error()})
+			errcode, errpl := errorHook(errOut.(error))
+			if errpl != nil {
+				c.JSON(errcode, gin.H{`error`: errpl})
+			} else {
+				c.String(errcode, "")
+			}
 			return
 		}
 		// Normal output, either serialize custom output object or send empty body
