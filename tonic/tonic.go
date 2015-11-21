@@ -36,6 +36,8 @@ const (
 // After analysis, the hook should return a suitable http status code and
 // error payload.
 // This lets you deeply inspect custom error types.
+// See sub-package 'jujuerrhook' for a ready-to-use implementation
+// that relies on juju/errors (https://github.com/juju/errors).
 type ErrorHook func(error) (int, interface{})
 
 var (
