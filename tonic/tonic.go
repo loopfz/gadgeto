@@ -19,6 +19,7 @@
 package tonic
 
 import (
+	"encoding"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -157,7 +158,7 @@ func Handler(f interface{}, retcode int) func(*gin.Context) {
 	}
 }
 
-func bindQueryPath(c *gin.Context, in reflect.Value, targetTag string, extractor func(*gin.Context, string) (string, error)) error {
+func bindQueryPath(c *gin.Context, in reflect.Value, targetTag string, extractor func(*gin.Context, string) (string, []string, error)) error {
 
 	inType := in.Type().Elem()
 
@@ -167,11 +168,11 @@ func bindQueryPath(c *gin.Context, in reflect.Value, targetTag string, extractor
 		if tag == "" {
 			continue
 		}
-		str, err := extractor(c, tag)
+		name, values, err := extractor(c, tag)
 		if err != nil {
 			return err
 		}
-		if str == "" {
+		if len(values) == 0 {
 			continue
 		}
 		field := in.Elem().Field(i)
@@ -180,48 +181,61 @@ func bindQueryPath(c *gin.Context, in reflect.Value, targetTag string, extractor
 			field.Set(f)
 			field = field.Elem()
 		}
-		err = bindValue(str, field)
-		if err != nil {
-			return err
+		if field.Kind() == reflect.Slice {
+			for _, v := range values {
+				newV := reflect.New(field.Type().Elem()).Elem()
+				err := bindValue(v, newV)
+				if err != nil {
+					return err
+				}
+				field.Set(reflect.Append(field, newV))
+			}
+			return nil
+		} else if len(values) > 0 {
+			return fmt.Errorf("Query parameter '%s' does not support multiple values", name)
+		} else {
+			err = bindValue(values[0], field)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
 	return nil
 }
 
-func extractQuery(c *gin.Context, tag string) (string, error) {
+func extractQuery(c *gin.Context, tag string) (string, []string, error) {
 
 	name, required, defval, err := extractTag(tag, true)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
-	var out string
-	if defval != "" {
-		out = c.DefaultQuery(name, defval)
-	} else {
-		out = c.Query(name)
+	q := c.Request.URL.Query()[name]
+
+	if defval != "" && len(q) == 0 {
+		q = []string{defval}
 	}
 
-	if required && out == "" {
-		return "", fmt.Errorf("Field %s is missing: required.", name)
+	if required && len(q) == 0 {
+		return "", nil, fmt.Errorf("Field %s is missing: required.", name)
 	}
 
-	return out, nil
+	return name, q, nil
 }
 
-func extractPath(c *gin.Context, tag string) (string, error) {
+func extractPath(c *gin.Context, tag string) (string, []string, error) {
 
 	name, required, _, err := extractTag(tag, false)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	out := c.Param(name)
 	if required && out == "" {
-		return "", fmt.Errorf("Field %s is missing: required.", name)
+		return "", nil, fmt.Errorf("Field %s is missing: required.", name)
 	}
-	return out, nil
+	return name, []string{out}, nil
 }
 
 func extractTag(tag string, defaultValue bool) (string, bool, string, error) {
@@ -247,6 +261,18 @@ func extractTag(tag string, defaultValue bool) (string, bool, string, error) {
 }
 
 func bindValue(s string, v reflect.Value) error {
+
+	unmarshaler, ok := v.Interface().(encoding.TextUnmarshaler)
+	if ok {
+		vIntf := reflect.New(v.Type()).Interface()
+		unmarshaler = vIntf.(encoding.TextUnmarshaler)
+		err := unmarshaler.UnmarshalText([]byte(s))
+		if err != nil {
+			return err
+		}
+		v.Set(reflect.Indirect(reflect.ValueOf(unmarshaler)))
+		return nil
+	}
 
 	switch v.Kind() {
 	case reflect.String:
