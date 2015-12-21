@@ -191,7 +191,7 @@ func bindQueryPath(c *gin.Context, in reflect.Value, targetTag string, extractor
 				field.Set(reflect.Append(field, newV))
 			}
 			return nil
-		} else if len(values) > 0 {
+		} else if len(values) > 1 {
 			return fmt.Errorf("Query parameter '%s' does not support multiple values", name)
 		} else {
 			err = bindValue(values[0], field)
@@ -262,10 +262,9 @@ func extractTag(tag string, defaultValue bool) (string, bool, string, error) {
 
 func bindValue(s string, v reflect.Value) error {
 
-	unmarshaler, ok := v.Interface().(encoding.TextUnmarshaler)
+	vIntf := reflect.New(v.Type()).Interface()
+	unmarshaler, ok := vIntf.(encoding.TextUnmarshaler)
 	if ok {
-		vIntf := reflect.New(v.Type()).Interface()
-		unmarshaler = vIntf.(encoding.TextUnmarshaler)
 		err := unmarshaler.UnmarshalText([]byte(s))
 		if err != nil {
 			return err
