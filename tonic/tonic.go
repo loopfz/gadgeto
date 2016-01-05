@@ -22,6 +22,7 @@ import (
 	"encoding"
 	"fmt"
 	"reflect"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -43,6 +44,7 @@ type ErrorHook func(error) (int, interface{})
 
 var (
 	errorHook ErrorHook = func(e error) (int, interface{}) { return 400, e.Error() }
+	routes              = make(map[string]*Route)
 )
 
 // SetErrorHook lets you set your own error hook.
@@ -64,10 +66,14 @@ func Handler(f interface{}, retcode int) func(*gin.Context) {
 
 	fval := reflect.ValueOf(f)
 	ftype := fval.Type()
+	fname := runtime.FuncForPC(fval.Pointer()).Name()
 
 	if fval.Kind() != reflect.Func {
 		panic(fmt.Sprintf("Handler parameter not a function: %T", f))
 	}
+
+	var typeIn reflect.Type
+	var typeOut reflect.Type
 
 	// Check tonic-handler inputs
 	numin := ftype.NumIn()
@@ -78,8 +84,12 @@ func Handler(f interface{}, retcode int) func(*gin.Context) {
 	if !ftype.In(0).ConvertibleTo(reflect.TypeOf(&gin.Context{})) {
 		panic(fmt.Sprintf("Unsupported type for handler input parameter: %v. Should be gin.Context.", ftype.In(0)))
 	}
-	if hasIn && ftype.In(1).Kind() != reflect.Ptr && ftype.In(1).Elem().Kind() != reflect.Struct {
-		panic(fmt.Sprintf("Unsupported type for handler input parameter: %v. Should be struct ptr.", ftype.In(1)))
+	if hasIn {
+		if ftype.In(1).Kind() != reflect.Ptr && ftype.In(1).Elem().Kind() != reflect.Struct {
+			panic(fmt.Sprintf("Unsupported type for handler input parameter: %v. Should be struct ptr.", ftype.In(1)))
+		} else {
+			typeIn = ftype.In(1).Elem()
+		}
 	}
 
 	// Check tonic handler outputs
@@ -91,20 +101,22 @@ func Handler(f interface{}, retcode int) func(*gin.Context) {
 	errIdx := 0
 	if hasOut {
 		errIdx += 1
+		typeOut = ftype.Out(0).Elem()
 	}
 	typeOfError := reflect.TypeOf((*error)(nil)).Elem()
 	if !ftype.Out(errIdx).Implements(typeOfError) {
 		panic(fmt.Sprintf("Unsupported type for handler output parameter: %v. Should be error.", ftype.Out(errIdx)))
 	}
 
-	// Store custom input type to New it later
-	var typeIn reflect.Type
-	if hasIn {
-		typeIn = ftype.In(1).Elem()
+	routes[fname] = &Route{
+		handler:     fval,
+		handlerType: ftype,
+		inputType:   typeIn,
+		outputType:  typeOut,
 	}
 
 	// Wrapping gin-handler
-	return func(c *gin.Context) {
+	retfunc := func(c *gin.Context) {
 
 		funcIn := []reflect.Value{reflect.ValueOf(c)}
 
@@ -156,6 +168,10 @@ func Handler(f interface{}, retcode int) func(*gin.Context) {
 			c.String(retcode, "")
 		}
 	}
+
+	gin.SetCustomHandlerFuncName(retfunc, fname)
+
+	return retfunc
 }
 
 func bindQueryPath(c *gin.Context, in reflect.Value, targetTag string, extractor func(*gin.Context, string) (string, []string, error)) error {
