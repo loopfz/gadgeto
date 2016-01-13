@@ -1,6 +1,7 @@
 package tonic
 
 import (
+	"net/http"
 	"reflect"
 	"strings"
 
@@ -12,20 +13,48 @@ var (
 	api *swagger.ApiDeclaration // singleton api declaration, generated once
 )
 
-func Swagger(e *gin.Engine) (func(c *gin.Context), error) {
+type DummyResponseWriter struct{}
+
+func (d *DummyResponseWriter) Header() http.Header {
+	h := make(map[string][]string)
+	return h
+}
+func (d *DummyResponseWriter) Write([]byte) (int, error) {
+	return 0, nil
+}
+func (d *DummyResponseWriter) WriteHeader(int) {}
+func newDummyResponseWriter() *DummyResponseWriter {
+	return &DummyResponseWriter{}
+}
+
+func callRoute(r gin.RouteInfo, h http.Handler) {
+	req, err := http.NewRequest(r.Method, r.Path, nil)
+	if err != nil {
+		panic(err)
+	}
+	h.ServeHTTP(newDummyResponseWriter(), req)
+}
+
+func swaggerHook(c *gin.Context, h gin.HandlerFunc, fname string) {
+	if r, ok := routes[fname]; ok {
+		r.Path = c.Request.URL.Path
+		r.Method = c.Request.Method
+	}
+}
+
+func Swagger(e *gin.Engine) gin.HandlerFunc {
 	if api == nil {
-		// complete route data: get method and path from gin engine
-		ginRoutes := e.Routes()
-		for _, r := range ginRoutes {
-			if tonicRoute, ok := routes[r.Handler]; ok {
-				tonicRoute.RouteInfo = r
-			}
+		defer SetExecHook(GetExecHook())
+		SetExecHook(swaggerHook)
+
+		for _, r := range e.Routes() {
+			callRoute(r, e)
 		}
 
 		// generate Api Declaration
 		gen := NewSchemaGenerator()
 		if err := gen.GenerateSwagDeclaration(routes, "", ""); err != nil {
-			return nil, err
+			panic(err)
 		}
 
 		// store once
@@ -34,7 +63,7 @@ func Swagger(e *gin.Engine) (func(c *gin.Context), error) {
 
 	return func(c *gin.Context) {
 		c.JSON(200, api)
-	}, nil
+	}
 }
 
 // GENERATOR

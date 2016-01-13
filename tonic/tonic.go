@@ -42,15 +42,37 @@ const (
 // that relies on juju/errors (https://github.com/juju/errors).
 type ErrorHook func(error) (int, interface{})
 
+type ExecHook func(*gin.Context, gin.HandlerFunc, string)
+
 var (
-	errorHook ErrorHook = func(e error) (int, interface{}) { return 400, e.Error() }
+	errorHook ErrorHook = DefaultErrorHook
+	execHook  ExecHook  = DefaultExecHook
 	routes              = make(map[string]*Route)
 )
 
 // SetErrorHook lets you set your own error hook.
 func SetErrorHook(eh ErrorHook) {
-	errorHook = eh
+	if eh != nil {
+		errorHook = eh
+	}
 }
+
+func GetErrorHook() ErrorHook {
+	return errorHook
+}
+
+func SetExecHook(eh ExecHook) {
+	if eh != nil {
+		execHook = eh
+	}
+}
+
+func GetExecHook() ExecHook {
+	return execHook
+}
+
+func DefaultExecHook(c *gin.Context, h gin.HandlerFunc, fname string) { h(c) }
+func DefaultErrorHook(e error) (int, interface{})                     { return 400, e.Error() }
 
 // Handler returns a wrapping gin-compatible handler that calls the tonic handler
 // passed in parameter.
@@ -62,7 +84,7 @@ func SetErrorHook(eh ErrorHook) {
 // The wrapping gin-handler will handle the binding code (JSON + path/query)
 // and the error handling.
 // This will PANIC if the tonic-handler is of incompatible type.
-func Handler(f interface{}, retcode int) func(*gin.Context) {
+func Handler(f interface{}, retcode int) gin.HandlerFunc {
 
 	fval := reflect.ValueOf(f)
 	ftype := fval.Type()
@@ -106,13 +128,6 @@ func Handler(f interface{}, retcode int) func(*gin.Context) {
 	typeOfError := reflect.TypeOf((*error)(nil)).Elem()
 	if !ftype.Out(errIdx).Implements(typeOfError) {
 		panic(fmt.Sprintf("Unsupported type for handler output parameter: %v. Should be error.", ftype.Out(errIdx)))
-	}
-
-	routes[fname] = &Route{
-		handler:     fval,
-		handlerType: ftype,
-		inputType:   typeIn,
-		outputType:  typeOut,
 	}
 
 	// Wrapping gin-handler
@@ -169,9 +184,14 @@ func Handler(f interface{}, retcode int) func(*gin.Context) {
 		}
 	}
 
-	gin.SetCustomHandlerFuncName(retfunc, fname)
+	routes[fname] = &Route{
+		handler:     fval,
+		handlerType: ftype,
+		inputType:   typeIn,
+		outputType:  typeOut,
+	}
 
-	return retfunc
+	return func(c *gin.Context) { execHook(c, retfunc, fname) }
 }
 
 func bindQueryPath(c *gin.Context, in reflect.Value, targetTag string, extractor func(*gin.Context, string) (string, []string, error)) error {
