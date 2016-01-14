@@ -3,7 +3,6 @@ package tonic
 import (
 	"fmt"
 	"reflect"
-	"regexp"
 	"strings"
 
 	"github.com/loopfz/gadgeto/tonic/swagger"
@@ -25,19 +24,26 @@ func getFieldName(field reflect.StructField) *string {
 }
 
 func paramName(f reflect.StructField) string {
-	// FIXME no more wosk
-	woskDirectives := f.Tag.Get("wosk")
-	name := f.Tag.Get("json")
-	name = strings.Replace(name, ",omitempty", "", -1)
-	if name == "" {
-		name = f.Name
+	var tag string
+	qTag := f.Tag.Get(query_tag)
+	if qTag != "" {
+		tag = qTag
 	}
-	re := regexp.MustCompile(`name=([^"',]+)`)
-	matches := re.FindStringSubmatch(woskDirectives)
-	if len(matches) > 0 {
-		name = matches[1]
+	pTag := f.Tag.Get(path_tag)
+	if pTag != "" {
+		tag = pTag
 	}
-	return name
+	jTag := f.Tag.Get("json")
+	if jTag != "" {
+		tag = jTag
+	}
+	tag = strings.Replace(tag, " ", "", -1)
+	tag = strings.Replace(tag, ",required", "", -1)
+	tag = strings.Replace(tag, ",omitempty", "", -1)
+	if tag == "" {
+		tag = f.Name
+	}
+	return tag
 }
 
 func paramDescription(f reflect.StructField) string {
@@ -45,25 +51,32 @@ func paramDescription(f reflect.StructField) string {
 }
 
 func paramRequired(f reflect.StructField) bool {
-	// FIXME no more wosk
-	woskDirectives := f.Tag.Get("wosk")
-	required := strings.Index(woskDirectives, "required=false") == -1
-	return required
+	var tag string
+	qTag := f.Tag.Get(query_tag)
+	if qTag != "" {
+		tag = qTag
+	}
+	pTag := f.Tag.Get(path_tag)
+	if pTag != "" {
+		tag = pTag
+	}
+	bTag := f.Tag.Get("binding")
+	if bTag != "" {
+		tag = bTag
+	}
+	return strings.Index(tag, "required") != -1
 }
 
 func paramType(f reflect.StructField) string {
-	// FIXME no more wosk
-	woskDirectives := f.Tag.Get("wosk")
-	var paramType string
-	// dataType value MUST be one of these values: "path", "query", "body", "header", "form"
-	if strings.Index(woskDirectives, "location=path") != -1 {
-		paramType = "path"
-	} else if strings.Index(woskDirectives, "location=query") != -1 {
-		paramType = "query"
-	} else if strings.Index(woskDirectives, "location=header") != -1 {
-		paramType = "header"
+	qTag := f.Tag.Get(query_tag)
+	if qTag != "" {
+		return query_tag
 	}
-	return paramType
+	pTag := f.Tag.Get(path_tag)
+	if pTag != "" {
+		return path_tag
+	}
+	return "body"
 }
 
 func paramTargetTypeAllowMultiple(f reflect.StructField) (reflect.Type, bool) {

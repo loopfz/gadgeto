@@ -185,10 +185,11 @@ func Handler(f interface{}, retcode int) gin.HandlerFunc {
 	}
 
 	routes[fname] = &Route{
-		handler:     fval,
-		handlerType: ftype,
-		inputType:   typeIn,
-		outputType:  typeOut,
+		defaultStatusCode: retcode,
+		handler:           fval,
+		handlerType:       ftype,
+		inputType:         typeIn,
+		outputType:        typeOut,
 	}
 
 	return func(c *gin.Context) { execHook(c, retfunc, fname) }

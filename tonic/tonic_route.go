@@ -11,6 +11,8 @@ import (
 type Route struct {
 	gin.RouteInfo
 
+	defaultStatusCode int
+
 	description string // ???
 
 	handler     reflect.Value
@@ -29,6 +31,10 @@ func (r *Route) GetPath() string {
 
 func (r *Route) GetDescription() string {
 	return r.description
+}
+
+func (r *Route) GetDefaultStatusCode() int {
+	return r.defaultStatusCode
 }
 
 func (r *Route) GetHandler() reflect.Value {

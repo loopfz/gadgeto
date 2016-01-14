@@ -166,7 +166,7 @@ func (s *SchemaGenerator) generateOperation(route *Route) (*swagger.Operation, e
 	if err := s.setOperationParams(&op, in); err != nil {
 		return nil, err
 	}
-	if err := s.setOperationResponse(&op, out); err != nil {
+	if err := s.setOperationResponse(&op, out, route.GetDefaultStatusCode()); err != nil {
 		return nil, err
 	}
 

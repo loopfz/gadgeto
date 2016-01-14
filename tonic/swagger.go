@@ -10,7 +10,7 @@ import (
 	"reflect"
 )
 
-func (s *SchemaGenerator) setOperationResponse(op *swagger.Operation, t reflect.Type) error {
+func (s *SchemaGenerator) setOperationResponse(op *swagger.Operation, t reflect.Type, retcode int) error {
 
 	//Just give every method a 200 response for now
 	//This could be improved given for example 201 for post
@@ -31,7 +31,7 @@ func (s *SchemaGenerator) setOperationResponse(op *swagger.Operation, t reflect.
 	}
 
 	op.Responses = map[string]swagger.Response{
-		"200": response,
+		fmt.Sprintf("%d", retcode): response,
 	}
 
 	return nil
@@ -75,7 +75,7 @@ func (s *SchemaGenerator) newParamFromStructField(f reflect.StructField, bodyMod
 	name := paramName(f)
 	paramType := paramType(f)
 
-	if paramType == "" {
+	if paramType == "body" {
 		if *bodyModel == nil {
 			m := swagger.NewModel("Input")
 			*bodyModel = &m
