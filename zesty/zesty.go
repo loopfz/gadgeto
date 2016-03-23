@@ -52,6 +52,9 @@ type DBProvider interface {
 	Tx() error
 	Commit() error
 	Rollback() error
+	Close() error
+	Ping() error
+	Stats() sql.DBStats
 }
 
 /*
@@ -174,6 +177,18 @@ func (zp *zestyprovider) Rollback() error {
 func (zp *zestyprovider) resetTx() {
 	zp.current = zp.db
 	zp.tx = nil
+}
+
+func (zp *zestyprovider) Close() error {
+	return zp.db.Close()
+}
+
+func (zp *zestyprovider) Ping() error {
+	return zp.db.Ping()
+}
+
+func (zp *zestyprovider) Stats() sql.DBStats {
+	return zp.db.Stats()
 }
 
 /*
