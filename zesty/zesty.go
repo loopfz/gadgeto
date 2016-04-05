@@ -92,7 +92,7 @@ func NewDBProvider(name string) (DBProvider, error) {
 	}, nil
 }
 
-func NewTemporalyDBProvider(db DB, name string) DBProvider {
+func NewTemporalyDBProvider(db DB) DBProvider {
 	return &zestyprovider{
 		current: db,
 		db:      db,
