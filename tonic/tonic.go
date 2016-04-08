@@ -141,7 +141,9 @@ func Handler(f interface{}, retcode int) func(*gin.Context) {
 		}
 		// Raised error, handle it
 		if errOut != nil {
-			errcode, errpl := errorHook(errOut.(error))
+			reterr := errOut.(error)
+			c.Error(reterr)
+			errcode, errpl := errorHook(reterr)
 			if errpl != nil {
 				c.JSON(errcode, gin.H{`error`: errpl})
 			} else {
