@@ -22,6 +22,7 @@ import (
 	"encoding"
 	"fmt"
 	"reflect"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -41,14 +42,41 @@ const (
 // that relies on juju/errors (https://github.com/juju/errors).
 type ErrorHook func(error) (int, interface{})
 
+type ExecHook func(*gin.Context, gin.HandlerFunc, string)
+
 var (
-	errorHook ErrorHook = func(e error) (int, interface{}) { return 400, e.Error() }
+	errorHook ErrorHook = DefaultErrorHook
+	execHook  ExecHook  = DefaultExecHook
+	routes              = make(map[string]*Route)
 )
+
+func GetRoutes() map[string]*Route {
+	return routes
+}
 
 // SetErrorHook lets you set your own error hook.
 func SetErrorHook(eh ErrorHook) {
-	errorHook = eh
+	if eh != nil {
+		errorHook = eh
+	}
 }
+
+func GetErrorHook() ErrorHook {
+	return errorHook
+}
+
+func SetExecHook(eh ExecHook) {
+	if eh != nil {
+		execHook = eh
+	}
+}
+
+func GetExecHook() ExecHook {
+	return execHook
+}
+
+func DefaultExecHook(c *gin.Context, h gin.HandlerFunc, fname string) { h(c) }
+func DefaultErrorHook(e error) (int, interface{})                     { return 400, e.Error() }
 
 // Handler returns a wrapping gin-compatible handler that calls the tonic handler
 // passed in parameter.
@@ -60,14 +88,18 @@ func SetErrorHook(eh ErrorHook) {
 // The wrapping gin-handler will handle the binding code (JSON + path/query)
 // and the error handling.
 // This will PANIC if the tonic-handler is of incompatible type.
-func Handler(f interface{}, retcode int) func(*gin.Context) {
+func Handler(f interface{}, retcode int) gin.HandlerFunc {
 
 	fval := reflect.ValueOf(f)
 	ftype := fval.Type()
+	fname := runtime.FuncForPC(fval.Pointer()).Name()
 
 	if fval.Kind() != reflect.Func {
 		panic(fmt.Sprintf("Handler parameter not a function: %T", f))
 	}
+
+	var typeIn reflect.Type
+	var typeOut reflect.Type
 
 	// Check tonic-handler inputs
 	numin := ftype.NumIn()
@@ -78,8 +110,12 @@ func Handler(f interface{}, retcode int) func(*gin.Context) {
 	if !ftype.In(0).ConvertibleTo(reflect.TypeOf(&gin.Context{})) {
 		panic(fmt.Sprintf("Unsupported type for handler input parameter: %v. Should be gin.Context.", ftype.In(0)))
 	}
-	if hasIn && ftype.In(1).Kind() != reflect.Ptr && ftype.In(1).Elem().Kind() != reflect.Struct {
-		panic(fmt.Sprintf("Unsupported type for handler input parameter: %v. Should be struct ptr.", ftype.In(1)))
+	if hasIn {
+		if ftype.In(1).Kind() != reflect.Ptr && ftype.In(1).Elem().Kind() != reflect.Struct {
+			panic(fmt.Sprintf("Unsupported type for handler input parameter: %v. Should be struct ptr.", ftype.In(1)))
+		} else {
+			typeIn = ftype.In(1)
+		}
 	}
 
 	// Check tonic handler outputs
@@ -91,26 +127,21 @@ func Handler(f interface{}, retcode int) func(*gin.Context) {
 	errIdx := 0
 	if hasOut {
 		errIdx += 1
+		typeOut = ftype.Out(0)
 	}
 	typeOfError := reflect.TypeOf((*error)(nil)).Elem()
 	if !ftype.Out(errIdx).Implements(typeOfError) {
 		panic(fmt.Sprintf("Unsupported type for handler output parameter: %v. Should be error.", ftype.Out(errIdx)))
 	}
 
-	// Store custom input type to New it later
-	var typeIn reflect.Type
-	if hasIn {
-		typeIn = ftype.In(1).Elem()
-	}
-
 	// Wrapping gin-handler
-	return func(c *gin.Context) {
+	retfunc := func(c *gin.Context) {
 
 		funcIn := []reflect.Value{reflect.ValueOf(c)}
 
 		if hasIn {
 			// tonic-handler has custom input object, handle binding
-			input := reflect.New(typeIn)
+			input := reflect.New(typeIn.Elem())
 			err := c.Bind(input.Interface())
 			if err != nil {
 				c.JSON(400, gin.H{`error`: err.Error()})
@@ -158,6 +189,16 @@ func Handler(f interface{}, retcode int) func(*gin.Context) {
 			c.String(retcode, "")
 		}
 	}
+
+	routes[fname] = &Route{
+		defaultStatusCode: retcode,
+		handler:           fval,
+		handlerType:       ftype,
+		inputType:         typeIn,
+		outputType:        typeOut,
+	}
+
+	return func(c *gin.Context) { execHook(c, retfunc, fname) }
 }
 
 func bindQueryPath(c *gin.Context, in reflect.Value, targetTag string, extractor func(*gin.Context, string) (string, []string, error)) error {
@@ -208,7 +249,7 @@ func bindQueryPath(c *gin.Context, in reflect.Value, targetTag string, extractor
 
 func extractQuery(c *gin.Context, tag string) (string, []string, error) {
 
-	name, required, defval, err := extractTag(tag, true)
+	name, required, defval, err := ExtractTag(tag, true)
 	if err != nil {
 		return "", nil, err
 	}
@@ -228,7 +269,7 @@ func extractQuery(c *gin.Context, tag string) (string, []string, error) {
 
 func extractPath(c *gin.Context, tag string) (string, []string, error) {
 
-	name, required, _, err := extractTag(tag, false)
+	name, required, _, err := ExtractTag(tag, false)
 	if err != nil {
 		return "", nil, err
 	}
@@ -240,7 +281,7 @@ func extractPath(c *gin.Context, tag string) (string, []string, error) {
 	return name, []string{out}, nil
 }
 
-func extractTag(tag string, defaultValue bool) (string, bool, string, error) {
+func ExtractTag(tag string, defaultValue bool) (string, bool, string, error) {
 
 	parts := strings.SplitN(tag, ",", -1)
 	name := parts[0]
