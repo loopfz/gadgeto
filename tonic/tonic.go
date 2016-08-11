@@ -44,9 +44,12 @@ type ErrorHook func(error) (int, interface{})
 
 type ExecHook func(*gin.Context, gin.HandlerFunc, string)
 
+type BindHook func(*gin.Context, interface{}) error
+
 var (
 	errorHook ErrorHook = DefaultErrorHook
 	execHook  ExecHook  = DefaultExecHook
+	bindHook  BindHook  = DefaultBindingHook
 	routes              = make(map[string]*Route)
 )
 
@@ -75,8 +78,19 @@ func GetExecHook() ExecHook {
 	return execHook
 }
 
+func SetBindHook(bh BindHook) {
+	if bh != nil {
+		bindHook = bh
+	}
+}
+
+func GetBindHook() BindHook {
+	return bindHook
+}
+
 func DefaultExecHook(c *gin.Context, h gin.HandlerFunc, fname string) { h(c) }
 func DefaultErrorHook(e error) (int, interface{})                     { return 400, e.Error() }
+func DefaultBindingHook(c *gin.Context, i interface{}) error          { return c.Bind(i) }
 
 // Handler returns a wrapping gin-compatible handler that calls the tonic handler
 // passed in parameter.
@@ -142,7 +156,7 @@ func Handler(f interface{}, retcode int) gin.HandlerFunc {
 		if hasIn {
 			// tonic-handler has custom input object, handle binding
 			input := reflect.New(typeIn.Elem())
-			err := c.Bind(input.Interface())
+			err := bindHook(c, input.Interface())
 			if err != nil {
 				c.JSON(400, gin.H{`error`: err.Error()})
 				return
