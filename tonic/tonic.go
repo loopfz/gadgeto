@@ -47,11 +47,10 @@ type ExecHook func(*gin.Context, gin.HandlerFunc, string)
 type BindHook func(*gin.Context, interface{}) error
 
 var (
-	DefaultBindingHook           = (*gin.Context).Bind
-	errorHook          ErrorHook = DefaultErrorHook
-	execHook           ExecHook  = DefaultExecHook
-	bindHook           BindHook  = DefaultBindingHook
-	routes                       = make(map[string]*Route)
+	errorHook ErrorHook = DefaultErrorHook
+	execHook  ExecHook  = DefaultExecHook
+	bindHook  BindHook  = DefaultBindingHook
+	routes              = make(map[string]*Route)
 )
 
 func GetRoutes() map[string]*Route {
@@ -91,6 +90,7 @@ func GetBindHook() BindHook {
 
 func DefaultExecHook(c *gin.Context, h gin.HandlerFunc, fname string) { h(c) }
 func DefaultErrorHook(e error) (int, interface{})                     { return 400, e.Error() }
+func DefaultBindingHook(c *gin.Context, i interface{}) error          { return c.Bind(i) }
 
 // Handler returns a wrapping gin-compatible handler that calls the tonic handler
 // passed in parameter.
