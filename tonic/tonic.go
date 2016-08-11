@@ -20,7 +20,9 @@ package tonic
 
 import (
 	"encoding"
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"reflect"
 	"runtime"
 	"strconv"
@@ -142,7 +144,7 @@ func Handler(f interface{}, retcode int) gin.HandlerFunc {
 		if hasIn {
 			// tonic-handler has custom input object, handle binding
 			input := reflect.New(typeIn.Elem())
-			err := c.Bind(input.Interface())
+			err := c.BindWith(input.Interface(), JSONnumberBinding)
 			if err != nil {
 				c.JSON(400, gin.H{`error`: err.Error()})
 				return
@@ -200,6 +202,20 @@ func Handler(f interface{}, retcode int) gin.HandlerFunc {
 
 	return func(c *gin.Context) { execHook(c, retfunc, fname) }
 }
+
+type jsonNumberBinding struct{}
+
+func (jsonNumberBinding) Name() string {
+	return "jsonNumberBinding"
+}
+
+func (jsonNumberBinding) Bind(req *http.Request, obj interface{}) error {
+	dec := json.NewDecoder(req.Body)
+	dec.UseNumber()
+	return dec.Decode(obj)
+}
+
+var JSONnumberBinding = jsonNumberBinding{}
 
 func bindQueryPath(c *gin.Context, in reflect.Value, targetTag string, extractor func(*gin.Context, string) (string, []string, error)) error {
 
