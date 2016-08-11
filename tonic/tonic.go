@@ -20,9 +20,7 @@ package tonic
 
 import (
 	"encoding"
-	"encoding/json"
 	"fmt"
-	"net/http"
 	"reflect"
 	"runtime"
 	"strconv"
@@ -46,9 +44,12 @@ type ErrorHook func(error) (int, interface{})
 
 type ExecHook func(*gin.Context, gin.HandlerFunc, string)
 
+type BindHook func(*gin.Context, interface{}) error
+
 var (
 	errorHook ErrorHook = DefaultErrorHook
 	execHook  ExecHook  = DefaultExecHook
+	bindHook  BindHook  = (*gin.Context).Bind
 	routes              = make(map[string]*Route)
 )
 
@@ -75,6 +76,16 @@ func SetExecHook(eh ExecHook) {
 
 func GetExecHook() ExecHook {
 	return execHook
+}
+
+func SetBindHook(bh BindHook) {
+	if bh != nil {
+		bindHook = bh
+	}
+}
+
+func GetBindHook() BindHook {
+	return bindHook
 }
 
 func DefaultExecHook(c *gin.Context, h gin.HandlerFunc, fname string) { h(c) }
@@ -144,7 +155,7 @@ func Handler(f interface{}, retcode int) gin.HandlerFunc {
 		if hasIn {
 			// tonic-handler has custom input object, handle binding
 			input := reflect.New(typeIn.Elem())
-			err := c.BindWith(input.Interface(), JSONnumberBinding)
+			err := bindHook(c, input.Interface())
 			if err != nil {
 				c.JSON(400, gin.H{`error`: err.Error()})
 				return
@@ -202,20 +213,6 @@ func Handler(f interface{}, retcode int) gin.HandlerFunc {
 
 	return func(c *gin.Context) { execHook(c, retfunc, fname) }
 }
-
-type jsonNumberBinding struct{}
-
-func (jsonNumberBinding) Name() string {
-	return "jsonNumberBinding"
-}
-
-func (jsonNumberBinding) Bind(req *http.Request, obj interface{}) error {
-	dec := json.NewDecoder(req.Body)
-	dec.UseNumber()
-	return dec.Decode(obj)
-}
-
-var JSONnumberBinding = jsonNumberBinding{}
 
 func bindQueryPath(c *gin.Context, in reflect.Value, targetTag string, extractor func(*gin.Context, string) (string, []string, error)) error {
 
