@@ -90,7 +90,16 @@ func GetBindHook() BindHook {
 
 func DefaultExecHook(c *gin.Context, h gin.HandlerFunc, fname string) { h(c) }
 func DefaultErrorHook(e error) (int, interface{})                     { return 400, e.Error() }
-func DefaultBindingHook(c *gin.Context, i interface{}) error          { return c.Bind(i) }
+func DefaultBindingHook(c *gin.Context, i interface{}) error {
+	if c.Request.ContentLength == 0 {
+		return nil
+	}
+	err := c.Bind(i)
+	if err != nil {
+		return fmt.Errorf("Error parsing request body: %s", err.Error())
+	}
+	return nil
+}
 
 // Handler returns a wrapping gin-compatible handler that calls the tonic handler
 // passed in parameter.
