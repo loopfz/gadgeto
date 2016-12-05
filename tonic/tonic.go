@@ -44,11 +44,18 @@ type ErrorHook func(error) (int, interface{})
 
 type ExecHook func(*gin.Context, gin.HandlerFunc, string)
 
+type BindHook func(*gin.Context, interface{}) error
+
 var (
 	errorHook ErrorHook = DefaultErrorHook
 	execHook  ExecHook  = DefaultExecHook
+	bindHook  BindHook  = DefaultBindingHook
 	routes              = make(map[string]*Route)
 )
+
+func GetRoutes() map[string]*Route {
+	return routes
+}
 
 // SetErrorHook lets you set your own error hook.
 func SetErrorHook(eh ErrorHook) {
@@ -71,8 +78,19 @@ func GetExecHook() ExecHook {
 	return execHook
 }
 
+func SetBindHook(bh BindHook) {
+	if bh != nil {
+		bindHook = bh
+	}
+}
+
+func GetBindHook() BindHook {
+	return bindHook
+}
+
 func DefaultExecHook(c *gin.Context, h gin.HandlerFunc, fname string) { h(c) }
 func DefaultErrorHook(e error) (int, interface{})                     { return 400, e.Error() }
+func DefaultBindingHook(c *gin.Context, i interface{}) error          { return c.Bind(i) }
 
 // Handler returns a wrapping gin-compatible handler that calls the tonic handler
 // passed in parameter.
@@ -137,8 +155,8 @@ func Handler(f interface{}, retcode int) gin.HandlerFunc {
 
 		if hasIn {
 			// tonic-handler has custom input object, handle binding
-			input := reflect.New(typeIn)
-			err := c.Bind(input.Interface())
+			input := reflect.New(typeIn.Elem())
+			err := bindHook(c, input.Interface())
 			if err != nil {
 				c.JSON(400, gin.H{`error`: err.Error()})
 				return
@@ -168,7 +186,9 @@ func Handler(f interface{}, retcode int) gin.HandlerFunc {
 		}
 		// Raised error, handle it
 		if errOut != nil {
-			errcode, errpl := errorHook(errOut.(error))
+			reterr := errOut.(error)
+			c.Error(reterr)
+			errcode, errpl := errorHook(reterr)
 			if errpl != nil {
 				c.JSON(errcode, gin.H{`error`: errpl})
 			} else {
@@ -243,7 +263,7 @@ func bindQueryPath(c *gin.Context, in reflect.Value, targetTag string, extractor
 
 func extractQuery(c *gin.Context, tag string) (string, []string, error) {
 
-	name, required, defval, err := extractTag(tag, true)
+	name, required, defval, err := ExtractTag(tag, true)
 	if err != nil {
 		return "", nil, err
 	}
@@ -263,7 +283,7 @@ func extractQuery(c *gin.Context, tag string) (string, []string, error) {
 
 func extractPath(c *gin.Context, tag string) (string, []string, error) {
 
-	name, required, _, err := extractTag(tag, false)
+	name, required, _, err := ExtractTag(tag, false)
 	if err != nil {
 		return "", nil, err
 	}
@@ -275,7 +295,7 @@ func extractPath(c *gin.Context, tag string) (string, []string, error) {
 	return name, []string{out}, nil
 }
 
-func extractTag(tag string, defaultValue bool) (string, bool, string, error) {
+func ExtractTag(tag string, defaultValue bool) (string, bool, string, error) {
 
 	parts := strings.SplitN(tag, ",", -1)
 	name := parts[0]
