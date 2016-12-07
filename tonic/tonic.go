@@ -155,7 +155,7 @@ func Handler(f interface{}, retcode int) gin.HandlerFunc {
 
 		if hasIn {
 			// tonic-handler has custom input object, handle binding
-			input := reflect.New(typeIn.Elem())
+			input := reflect.New(typeIn)
 			err := bindHook(c, input.Interface())
 			if err != nil {
 				c.JSON(400, gin.H{`error`: err.Error()})
