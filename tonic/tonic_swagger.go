@@ -1,6 +1,7 @@
 package tonic
 
 import (
+	"encoding/json"
 	"net/http"
 	"reflect"
 	"strings"
@@ -42,7 +43,7 @@ func swaggerHook(c *gin.Context, h gin.HandlerFunc, fname string) {
 	}
 }
 
-func Swagger(e *gin.Engine) gin.HandlerFunc {
+func Swagger(e *gin.Engine, godoc string) gin.HandlerFunc {
 	if api == nil {
 		defer SetExecHook(GetExecHook())
 		SetExecHook(swaggerHook)
@@ -53,7 +54,7 @@ func Swagger(e *gin.Engine) gin.HandlerFunc {
 
 		// generate Api Declaration
 		gen := NewSchemaGenerator()
-		if err := gen.GenerateSwagDeclaration(routes, "", ""); err != nil {
+		if err := gen.GenerateSwagDeclaration(routes, "", "", godoc); err != nil {
 			panic(err)
 		}
 
@@ -94,9 +95,16 @@ func NewSchemaGenerator() *SchemaGenerator {
 }
 
 // GenerateSwagDeclaration parses all routes (handlers, structs) and returns ready to serialize/use ApiDeclaration
-func (s *SchemaGenerator) GenerateSwagDeclaration(routes map[string]*Route, basePath, version string) error {
+func (s *SchemaGenerator) GenerateSwagDeclaration(routes map[string]*Route, basePath, version, godocStr string) error {
 
-	s.docInfos = LoadDoc(routes)
+	godoc := &Infos{}
+	if godocStr != "" {
+		err := json.Unmarshal([]byte(godocStr), &godoc)
+		if err != nil {
+			return err
+		}
+	}
+	s.docInfos = godoc
 	s.apiDeclaration = swagger.NewApiDeclaration(version, basePath)
 
 	// create Operation for each route, creating models as we go
