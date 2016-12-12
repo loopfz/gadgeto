@@ -34,22 +34,9 @@ var gopath string
 
 func init() {
 	gopath = os.Getenv("GOPATH")
-	if gopath == "" {
-		panic("gopath not defined")
-	}
 }
 
 func GenerateDoc() *Infos {
-
-	var sourceDirs = map[string]bool{}
-	var allDone stopper = func() bool {
-		for _, treated := range sourceDirs {
-			if !treated {
-				return false
-			}
-		}
-		return true
-	}
 
 	docInfos := &Infos{
 		FunctionsDoc:    map[string]string{},
@@ -58,15 +45,27 @@ func GenerateDoc() *Infos {
 		StructFieldsDoc: map[string]map[string]string{},
 	}
 
-	treatSourcedir(".", docInfos, sourceDirs)
-
-	for !allDone() {
-		for dir := range sourceDirs {
-			if sourceDirs[dir] {
-				continue
+	if gopath != "" {
+		var sourceDirs = map[string]bool{}
+		var allDone stopper = func() bool {
+			for _, treated := range sourceDirs {
+				if !treated {
+					return false
+				}
 			}
-			treatSourcedir(dir, docInfos, sourceDirs)
-			sourceDirs[dir] = true
+			return true
+		}
+
+		treatSourcedir(".", docInfos, sourceDirs)
+
+		for !allDone() {
+			for dir := range sourceDirs {
+				if sourceDirs[dir] {
+					continue
+				}
+				treatSourcedir(dir, docInfos, sourceDirs)
+				sourceDirs[dir] = true
+			}
 		}
 	}
 
