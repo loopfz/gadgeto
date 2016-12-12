@@ -1,11 +1,16 @@
-package tonic
+package genswagger
 
 import (
 	"fmt"
 	"reflect"
 	"strings"
 
-	"github.com/loopfz/gadgeto/tonic/swagger"
+	"github.com/loopfz/gadgeto/tonic/genswagger/swagger"
+)
+
+const (
+	query_tag = "query"
+	path_tag  = "path"
 )
 
 // why two different funcs for the same ???

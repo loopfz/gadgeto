@@ -1,4 +1,4 @@
-package tonic
+package doc
 
 /*
 This package uses "go/doc" to extract documentation for packages
@@ -6,14 +6,11 @@ Used by swagger to put comments on types, operation and determine which types ar
 */
 
 import (
-	"fmt"
 	"go/ast"
 	"go/doc"
 	"go/parser"
 	"go/token"
 	"os"
-	"path/filepath"
-	"runtime"
 	"strings"
 )
 
@@ -42,9 +39,7 @@ func init() {
 	}
 }
 
-// LoadDoc takes all route, determine source file where handlers are
-// and extracts documentation to docInfos.FunctionsDoc[handlerName]
-func LoadDoc(routes map[string]*Route) *Infos {
+func GenerateDoc() *Infos {
 
 	var sourceDirs = map[string]bool{}
 	var allDone stopper = func() bool {
@@ -56,22 +51,14 @@ func LoadDoc(routes map[string]*Route) *Infos {
 		return true
 	}
 
-	docInfos := new(Infos)
-	docInfos.FunctionsDoc = map[string]string{}
-	docInfos.TypesDoc = map[string]string{}
-	docInfos.Constants = map[string]constantInfo{}
-	docInfos.StructFieldsDoc = map[string]map[string]string{}
-
-	for _, ruut := range routes {
-		if !ruut.GetHandler().IsValid() || ruut.GetHandler().IsNil() {
-			fmt.Printf("This handler violates Disney's correction policy (it's Fucking Goofy) -> %+v\nSKIPPING ROUTE!!\n\n", ruut)
-			continue
-		}
-		ptr := ruut.GetHandler().Pointer()
-		filename, _ := runtime.FuncForPC(ptr).FileLine(ptr)
-		dir, _ := filepath.Split(filename)
-		sourceDirs[dir] = false
+	docInfos := &Infos{
+		FunctionsDoc:    map[string]string{},
+		TypesDoc:        map[string]string{},
+		Constants:       map[string]constantInfo{},
+		StructFieldsDoc: map[string]map[string]string{},
 	}
+
+	treatSourcedir(".", docInfos, sourceDirs)
 
 	for !allDone() {
 		for dir := range sourceDirs {
