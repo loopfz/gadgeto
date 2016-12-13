@@ -137,7 +137,7 @@ func Handler(f interface{}, retcode int) gin.HandlerFunc {
 		if ftype.In(1).Kind() != reflect.Ptr && ftype.In(1).Elem().Kind() != reflect.Struct {
 			panic(fmt.Sprintf("Unsupported type for handler input parameter: %v. Should be struct ptr.", ftype.In(1)))
 		} else {
-			typeIn = ftype.In(1)
+			typeIn = ftype.In(1).Elem()
 		}
 	}
 
@@ -150,7 +150,7 @@ func Handler(f interface{}, retcode int) gin.HandlerFunc {
 	errIdx := 0
 	if hasOut {
 		errIdx += 1
-		typeOut = ftype.Out(0)
+		typeOut = ftype.Out(0).Elem()
 	}
 	typeOfError := reflect.TypeOf((*error)(nil)).Elem()
 	if !ftype.Out(errIdx).Implements(typeOfError) {
@@ -164,7 +164,7 @@ func Handler(f interface{}, retcode int) gin.HandlerFunc {
 
 		if hasIn {
 			// tonic-handler has custom input object, handle binding
-			input := reflect.New(typeIn.Elem())
+			input := reflect.New(typeIn)
 			err := bindHook(c, input.Interface())
 			if err != nil {
 				c.JSON(400, gin.H{`error`: err.Error()})
