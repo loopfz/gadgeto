@@ -40,7 +40,7 @@ const (
 // This lets you deeply inspect custom error types.
 // See sub-package 'jujuerrhook' for a ready-to-use implementation
 // that relies on juju/errors (https://github.com/juju/errors).
-type ErrorHook func(error) (int, interface{})
+type ErrorHook func(*gin.Context, error) (int, interface{})
 
 type ExecHook func(*gin.Context, gin.HandlerFunc, string)
 
@@ -89,7 +89,10 @@ func GetBindHook() BindHook {
 }
 
 func DefaultExecHook(c *gin.Context, h gin.HandlerFunc, fname string) { h(c) }
-func DefaultErrorHook(e error) (int, interface{})                     { return 400, e.Error() }
+func DefaultErrorHook(c *gin.Context, e error) (int, interface{}) {
+	return 400, gin.H{`error`: e.Error()}
+}
+
 func DefaultBindingHook(c *gin.Context, i interface{}) error {
 	if c.Request.ContentLength == 0 {
 		return nil
@@ -99,6 +102,13 @@ func DefaultBindingHook(c *gin.Context, i interface{}) error {
 		return fmt.Errorf("Error parsing request body: %s", err.Error())
 	}
 	return nil
+}
+
+// InputError is an error type returned when tonic failed to bind parameters.
+type InputError string
+
+func (ie InputError) Error() string {
+	return string(ie)
 }
 
 // Handler returns a wrapping gin-compatible handler that calls the tonic handler
@@ -167,17 +177,17 @@ func Handler(f interface{}, retcode int) gin.HandlerFunc {
 			input := reflect.New(typeIn)
 			err := bindHook(c, input.Interface())
 			if err != nil {
-				c.JSON(400, gin.H{`error`: err.Error()})
+				handleError(c, InputError(err.Error()))
 				return
 			}
 			err = bindQueryPath(c, input, query_tag, extractQuery)
 			if err != nil {
-				c.JSON(400, gin.H{`error`: err.Error()})
+				handleError(c, InputError(err.Error()))
 				return
 			}
 			err = bindQueryPath(c, input, path_tag, extractPath)
 			if err != nil {
-				c.JSON(400, gin.H{`error`: err.Error()})
+				handleError(c, InputError(err.Error()))
 				return
 			}
 			funcIn = append(funcIn, input)
@@ -197,12 +207,8 @@ func Handler(f interface{}, retcode int) gin.HandlerFunc {
 		if errOut != nil {
 			reterr := errOut.(error)
 			c.Error(reterr)
-			errcode, errpl := errorHook(reterr)
-			if errpl != nil {
-				c.JSON(errcode, gin.H{`error`: errpl})
-			} else {
-				c.String(errcode, "")
-			}
+
+			handleError(c, reterr)
 			return
 		}
 		// Normal output, either serialize custom output object or send empty body
@@ -222,6 +228,16 @@ func Handler(f interface{}, retcode int) gin.HandlerFunc {
 	}
 
 	return func(c *gin.Context) { execHook(c, retfunc, fname) }
+}
+
+func handleError(c *gin.Context, err error) {
+	errcode, errpl := errorHook(c, err)
+	if errpl != nil {
+		c.JSON(errcode, errpl)
+	} else {
+		c.String(errcode, "")
+	}
+	return
 }
 
 func bindQueryPath(c *gin.Context, in reflect.Value, targetTag string, extractor func(*gin.Context, string) (string, []string, error)) error {
