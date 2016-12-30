@@ -16,3 +16,7 @@ Components:
 
     - Zesty: Based on Gorp (https://github.com/go-gorp/gorp), zesty abstracts
                 DB specifics for easy (nested) transaction management.
+
+    - Iffy: An HTTP testing library for functional/unit tests,
+                iffy does all the hard work (http, marshaling, templating...) and
+                lets you describe http calls as one-liners, chaining them in complex scenarios.
