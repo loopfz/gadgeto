@@ -29,6 +29,7 @@ func TestMain(m *testing.M) {
 
 	g := gin.Default()
 	g.GET("/simple", tonic.Handler(simpleHandler, 200))
+	g.GET("/scalar", tonic.Handler(scalarHandler, 200))
 	g.GET("/error", tonic.Handler(errorHandler, 200))
 	g.GET("/path/:param", tonic.Handler(pathHandler, 200))
 	g.GET("/query", tonic.Handler(queryHandler, 200))
@@ -48,6 +49,8 @@ func TestSimple(t *testing.T) {
 	tester.AddCall("simple", "GET", "/simple?", "").Checkers(iffy.ExpectStatus(200))
 	tester.AddCall("simple", "GET", "/simple", "{}").Checkers(iffy.ExpectStatus(200))
 	tester.AddCall("simple", "GET", "/simple?param=useless", "{}").Checkers(iffy.ExpectStatus(200))
+
+	tester.AddCall("scalar", "GET", "/scalar", "").Checkers(iffy.ExpectStatus(200))
 
 	tester.Run()
 }
@@ -104,6 +107,10 @@ func errorHandler(c *gin.Context) error {
 
 func simpleHandler(c *gin.Context) error {
 	return nil
+}
+
+func scalarHandler(c *gin.Context) (string, error) {
+	return "", nil
 }
 
 type pathIn struct {
