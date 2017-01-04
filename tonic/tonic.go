@@ -160,7 +160,14 @@ func Handler(f interface{}, retcode int) gin.HandlerFunc {
 	errIdx := 0
 	if hasOut {
 		errIdx += 1
-		typeOut = ftype.Out(0).Elem()
+		switch ftype.Out(0).Kind() {
+		case reflect.Interface, reflect.Ptr:
+			// According to Elem() doc :
+			//  It panics if v's Kind is not Interface or Ptr.
+			typeOut = ftype.Out(0).Elem()
+		default:
+			typeOut = ftype.Out(0)
+		}
 	}
 	typeOfError := reflect.TypeOf((*error)(nil)).Elem()
 	if !ftype.Out(errIdx).Implements(typeOfError) {
