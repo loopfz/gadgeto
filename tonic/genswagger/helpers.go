@@ -3,7 +3,6 @@ package genswagger
 import (
 	"fmt"
 	"reflect"
-	"regexp"
 	"strings"
 
 	"github.com/loopfz/gadgeto/tonic/genswagger/swagger"
@@ -116,10 +115,4 @@ func paramFormatDataTypeRefId(f reflect.StructField) (string, string, string) {
 		dataType, format, refId = swagger.GoTypeToSwagger(targetType)
 	}
 	return format, dataType, refId
-}
-
-var ginPathParamRe = regexp.MustCompile(`\/:([^\/]*)`)
-
-func cleanPath(ginPath string) string {
-	return ginPathParamRe.ReplaceAllString(ginPath, "/{$1}")
 }

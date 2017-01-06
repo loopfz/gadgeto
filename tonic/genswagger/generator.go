@@ -82,11 +82,10 @@ func (s *SchemaGenerator) addOperation(route *tonic.Route) error {
 		return err
 	}
 
-	path := cleanPath(route.GetPath())
-	if _, ok := s.apiDeclaration.Paths[path]; !ok {
-		s.apiDeclaration.Paths[path] = make(map[string]swagger.Operation)
+	if _, ok := s.apiDeclaration.Paths[route.GetPath()]; !ok {
+		s.apiDeclaration.Paths[route.GetPath()] = make(map[string]swagger.Operation)
 	}
-	s.apiDeclaration.Paths[path][strings.ToLower(op.HttpMethod)] = *op
+	s.apiDeclaration.Paths[route.GetPath()][strings.ToLower(op.HttpMethod)] = *op
 
 	return nil
 }

@@ -46,11 +46,14 @@ type ExecHook func(*gin.Context, gin.HandlerFunc, string)
 
 type BindHook func(*gin.Context, interface{}) error
 
+type RenderHook func(*gin.Context, int, interface{})
+
 var (
-	errorHook ErrorHook = DefaultErrorHook
-	execHook  ExecHook  = DefaultExecHook
-	bindHook  BindHook  = DefaultBindingHook
-	routes              = make(map[string]*Route)
+	errorHook  ErrorHook  = DefaultErrorHook
+	execHook   ExecHook   = DefaultExecHook
+	bindHook   BindHook   = DefaultBindingHook
+	renderHook RenderHook = DefaultRenderHook
+	routes                = make(map[string]*Route)
 )
 
 func GetRoutes() map[string]*Route {
@@ -88,7 +91,18 @@ func GetBindHook() BindHook {
 	return bindHook
 }
 
+func SetRenderHook(rh RenderHook) {
+	if rh != nil {
+		renderHook = rh
+	}
+}
+
+func GetRenderHook() RenderHook {
+	return renderHook
+}
+
 func DefaultExecHook(c *gin.Context, h gin.HandlerFunc, fname string) { h(c) }
+
 func DefaultErrorHook(c *gin.Context, e error) (int, interface{}) {
 	return 400, gin.H{`error`: e.Error()}
 }
@@ -102,6 +116,19 @@ func DefaultBindingHook(c *gin.Context, i interface{}) error {
 		return fmt.Errorf("Error parsing request body: %s", err.Error())
 	}
 	return nil
+}
+
+func DefaultRenderHook(c *gin.Context, status int, payload interface{}) {
+	// Either serialize custom output object or send empty body
+	if payload != nil {
+		if gin.IsDebugging() {
+			c.IndentedJSON(status, payload)
+		} else {
+			c.JSON(status, payload)
+		}
+	} else {
+		c.String(status, "")
+	}
 }
 
 // InputError is an error type returned when tonic failed to bind parameters.
@@ -160,14 +187,7 @@ func Handler(f interface{}, retcode int) gin.HandlerFunc {
 	errIdx := 0
 	if hasOut {
 		errIdx += 1
-		switch ftype.Out(0).Kind() {
-		case reflect.Interface, reflect.Ptr:
-			// According to Elem() doc :
-			//  It panics if v's Kind is not Interface or Ptr.
-			typeOut = ftype.Out(0).Elem()
-		default:
-			typeOut = ftype.Out(0)
-		}
+		typeOut = ftype.Out(0).Elem()
 	}
 	typeOfError := reflect.TypeOf((*error)(nil)).Elem()
 	if !ftype.Out(errIdx).Implements(typeOfError) {
@@ -218,12 +238,8 @@ func Handler(f interface{}, retcode int) gin.HandlerFunc {
 			handleError(c, reterr)
 			return
 		}
-		// Normal output, either serialize custom output object or send empty body
-		if hasOut {
-			c.JSON(retcode, outval)
-		} else {
-			c.String(retcode, "")
-		}
+		// Normal output
+		renderHook(c, retcode, outval)
 	}
 
 	routes[fname] = &Route{
@@ -239,12 +255,7 @@ func Handler(f interface{}, retcode int) gin.HandlerFunc {
 
 func handleError(c *gin.Context, err error) {
 	errcode, errpl := errorHook(c, err)
-	if errpl != nil {
-		c.JSON(errcode, errpl)
-	} else {
-		c.String(errcode, "")
-	}
-	return
+	renderHook(c, errcode, errpl)
 }
 
 func bindQueryPath(c *gin.Context, in reflect.Value, targetTag string, extractor func(*gin.Context, string) (string, []string, error)) error {

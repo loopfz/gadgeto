@@ -44,7 +44,7 @@ func TestSimple(t *testing.T) {
 
 	tester := iffy.NewTester(t, r)
 
-	tester.AddCall("simple", "GET", "/simple", "").Checkers(iffy.ExpectStatus(200))
+	tester.AddCall("simple", "GET", "/simple", "").Checkers(iffy.ExpectStatus(200), expectEmptyBody)
 	tester.AddCall("simple", "GET", "/simple/", "").Checkers(iffy.ExpectStatus(301))
 	tester.AddCall("simple", "GET", "/simple?", "").Checkers(iffy.ExpectStatus(200))
 	tester.AddCall("simple", "GET", "/simple", "{}").Checkers(iffy.ExpectStatus(200))
@@ -143,6 +143,13 @@ type bodyIn struct {
 
 func bodyHandler(c *gin.Context, in *bodyIn) (*bodyIn, error) {
 	return in, nil
+}
+
+func expectEmptyBody(r *http.Response, body string, obj interface{}) error {
+	if len(body) != 0 {
+		return fmt.Errorf("Body '%s' should be empty", body)
+	}
+	return nil
 }
 
 func expectString(paramName, value string) func(*http.Response, string, interface{}) error {
