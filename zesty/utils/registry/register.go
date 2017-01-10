@@ -1,5 +1,10 @@
 package utils
 
+import "sync"
+
+// modelsMu protect models map.
+var modelsMu sync.Mutex
+
 // models represents the models registered
 // for all databases.
 var models map[string]map[string]*TableModel
@@ -23,6 +28,9 @@ type TableModel struct {
 // has already been registered with the same table name,
 // this will overwrite it.
 func RegisterTableModel(dbName, tableName string, model interface{}) *TableModel {
+	modelsMu.Lock()
+	defer modelsMu.Unlock()
+
 	if _, ok := models[dbName]; !ok {
 		// Detabase entry does not exists, let's
 		// create it and add a new model for the table.

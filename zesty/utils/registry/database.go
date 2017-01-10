@@ -22,7 +22,9 @@ type DatabaseConfig struct {
 // RegisterDatabase creates a gorp map with tables and tc and
 // registers it with zesty.
 func RegisterDatabase(db *DatabaseConfig, tc gorp.TypeConverter) error {
+	modelsMu.Lock()
 	tableModels, ok := models[db.Name]
+	modelsMu.Unlock()
 	if !ok {
 		return fmt.Errorf("no models registered for database %s", db.Name)
 	}
