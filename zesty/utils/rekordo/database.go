@@ -9,6 +9,12 @@ import (
 	"github.com/loopfz/gadgeto/zesty"
 )
 
+// Default database settings.
+const (
+	maxOpenConns = 5
+	maxIdleConns = 3
+)
+
 // DatabaseConfig represents the configuration used to
 // register a new database.
 type DatabaseConfig struct {
@@ -32,7 +38,16 @@ func RegisterDatabase(db *DatabaseConfig, tc gorp.TypeConverter) error {
 	if err != nil {
 		return err
 	}
+	// Make sure we have proper values for the database
+	// settings, and replace them with default if necessary
+	// before applying to the new connection.
+	if db.MaxOpenConns == 0 {
+		db.MaxOpenConns = maxOpenConns
+	}
 	dbConn.SetMaxOpenConns(db.MaxOpenConns)
+	if db.MaxIdleConns == 0 {
+		db.MaxIdleConns = maxIdleConns
+	}
 	dbConn.SetMaxIdleConns(db.MaxIdleConns)
 
 	// Select the proper dialect used by gorp.
