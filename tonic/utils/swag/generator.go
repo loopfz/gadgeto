@@ -1,4 +1,4 @@
-package genswagger
+package swag
 
 import (
 	"fmt"
@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	"github.com/loopfz/gadgeto/tonic"
-	"github.com/loopfz/gadgeto/tonic/genswagger/doc"
-	"github.com/loopfz/gadgeto/tonic/genswagger/swagger"
+	"github.com/loopfz/gadgeto/tonic/utils/swag/doc"
+	"github.com/loopfz/gadgeto/tonic/utils/swag/swagger"
 )
 
 // GENERATOR
@@ -103,11 +103,6 @@ func (s *SchemaGenerator) generateOperation(route *tonic.Route) (*swagger.Operat
 		s.generateSwagModel(out, nil),
 		s.docInfos.FunctionsDoc[route.GetHandlerNameWithPackage()],
 	)
-
-	//Mark `osterone` package routes (monitoring handlers)
-	if strings.Index(route.GetHandlerNameWithPackage(), "osterone") >= 0 {
-		op.IsMonitoring = true
-	}
 
 	if err := s.setOperationParams(&op, in); err != nil {
 		return nil, err

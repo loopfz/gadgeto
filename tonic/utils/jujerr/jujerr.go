@@ -1,4 +1,4 @@
-package jujuerrhook
+package jujerr
 
 import (
 	"github.com/gin-gonic/gin"

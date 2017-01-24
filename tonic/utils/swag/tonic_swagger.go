@@ -1,4 +1,4 @@
-package genswagger
+package swag
 
 import (
 	"encoding/json"
@@ -6,8 +6,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/loopfz/gadgeto/tonic"
-	"github.com/loopfz/gadgeto/tonic/genswagger/doc"
-	"github.com/loopfz/gadgeto/tonic/genswagger/swagger"
+	"github.com/loopfz/gadgeto/tonic/utils/swag/doc"
+	"github.com/loopfz/gadgeto/tonic/utils/swag/swagger"
 )
 
 var (

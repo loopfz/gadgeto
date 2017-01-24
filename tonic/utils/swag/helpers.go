@@ -1,4 +1,4 @@
-package genswagger
+package swag
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/loopfz/gadgeto/tonic/genswagger/swagger"
+	"github.com/loopfz/gadgeto/tonic/utils/swag/swagger"
 )
 
 const (
