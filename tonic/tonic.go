@@ -83,7 +83,7 @@ func DefaultBindingHook(c *gin.Context, i interface{}) error {
 		return nil
 	}
 	if err := c.Bind(i); err != nil {
-		return fmt.Errorf("Error parsing request body: %s", err.Error())
+		return fmt.Errorf("error parsing request body: %s", err.Error())
 	}
 	return nil
 }
@@ -224,17 +224,14 @@ func Handler(f interface{}, retcode int) gin.HandlerFunc {
 		errIdx++
 		// Output type can be lots of things, we should let it as it is
 		typeOut = ftype.Out(0)
-		// switch ftype.Out(0).Kind() {
-		// case reflect.Interface, reflect.Ptr:
-		// 	// According to Elem() doc :
-		// 	// It panics if v's Kind is not Interface or Ptr.
-		// 	// Actually this is Elem() on Type not on Value, so
-		// 	// It panics if the type's Kind is not Array, Chan, Map, Ptr, or Slice.
-		// 	// TODO
-		// 	typeOut = ftype.Out(0).Elem()
-		// default:
-		// 	typeOut = ftype.Out(0)
-		// }
+		switch ftype.Out(0).Kind() {
+		case reflect.Ptr:
+			// According to reflect.Type.Elem() doc:
+			// It panics if the type's Kind is not Array, Chan, Map, Ptr, or Slice.
+			typeOut = ftype.Out(0).Elem()
+		default:
+			typeOut = ftype.Out(0)
+		}
 	}
 	typeOfError := reflect.TypeOf((*error)(nil)).Elem()
 	if !ftype.Out(errIdx).Implements(typeOfError) {
@@ -368,7 +365,7 @@ func bindQueryPath(c *gin.Context, in reflect.Value, targetTag string, extractor
 			}
 			return nil
 		} else if len(values) > 1 {
-			return fmt.Errorf("Parameter '%s' does not support multiple values", name)
+			return fmt.Errorf("parameter '%s' does not support multiple values", name)
 		} else {
 			err = bindValue(values[0], field)
 			if err != nil {
@@ -398,7 +395,7 @@ func extractQuery(c *gin.Context, tag string) (string, []string, error) {
 	}
 
 	if required && len(q) == 0 {
-		return "", nil, fmt.Errorf("Missing required field: %s", name)
+		return "", nil, fmt.Errorf("missing required field: %s", name)
 	}
 
 	return name, q, nil
@@ -417,7 +414,7 @@ func extractPath(c *gin.Context, tag string) (string, []string, error) {
 
 	out := c.Param(name)
 	if required && out == "" {
-		return "", nil, fmt.Errorf("Field %s is missing: required.", name)
+		return "", nil, fmt.Errorf("field %s is missing: required", name)
 	}
 	return name, []string{out}, nil
 }
@@ -444,7 +441,7 @@ func ExtractTag(tag string, defaultValue bool) (string, bool, string, error) {
 			o = strings.TrimPrefix(o, "default=")
 			defVal = o
 		} else {
-			return "", false, "", fmt.Errorf("Malformed tag for param '%s': unknown option '%s'", name, o)
+			return "", false, "", fmt.Errorf("malformed tag for param '%s': unknown option '%s'", name, o)
 		}
 	}
 	return name, required, defVal, nil
@@ -486,7 +483,7 @@ func bindValue(s string, v reflect.Value) error {
 		}
 		v.SetBool(b)
 	default:
-		return fmt.Errorf("Unsupported type for param bind: %v", v.Kind())
+		return fmt.Errorf("unsupported type for param bind: %v", v.Kind())
 	}
 
 	return nil
