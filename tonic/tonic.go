@@ -272,7 +272,15 @@ func bindQueryPath(c *gin.Context, in reflect.Value, targetTag string, extractor
 	for i := 0; i < in.Elem().NumField(); i++ {
 		fieldType := inType.Field(i)
 		if fieldType.Anonymous {
-			err := bindQueryPath(c, in.Elem().Field(i).Addr(), targetTag, extractor)
+			inField := in.Elem().Field(i)
+			if inField.Kind() == reflect.Ptr {
+				if inField.IsNil() {
+					inField.Set(reflect.New(inField.Type().Elem()))
+				}
+			} else {
+				inField = inField.Addr()
+			}
+			err := bindQueryPath(c, inField, targetTag, extractor)
 			if err != nil {
 				return err
 			}

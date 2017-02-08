@@ -131,7 +131,7 @@ type queryIn struct {
 	ParamDefault  string    `query:"param-default, default=default" json:"param-default"`
 	ParamPtr      *string   `query:"param-ptr" json:"param-ptr"`
 	ParamComplex  time.Time `query:"param-complex" json:"param-complex"`
-	DoubleEmbedded
+	*DoubleEmbedded
 }
 
 type Embedded struct {
