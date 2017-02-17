@@ -266,7 +266,7 @@ func ExpectJSONBranch(nodes ...string) Checker {
 				// and there's only one more node to check
 				// test last child against last provided node
 				lastNode := nodes[i+1]
-				if v != lastNode {
+				if fmt.Sprintf("%v", v) != lastNode {
 					return fmt.Errorf("Wrong value: expected '%v', got '%v'", lastNode, v)
 				}
 				return nil
