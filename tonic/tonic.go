@@ -1,21 +1,3 @@
-// tonic lets you write simpler gin handlers.
-// The way it works is that it generates wrapping gin-compatible handlers,
-// that do all the repetitive work and wrap the call to your simple tonic handler.
-//
-// tonic handles path/query/body parameter binding in a single consolidated input object
-// which allows you to remove all the boilerplate code that retrieves and tests the presence
-// of various parameters.
-//
-// Example input object:
-// type MyInput struct {
-//     Foo int `path:"foo, required"`
-//     Bar float `query:"bar, default=foobar"`
-//     Baz string `json:"baz" binding:"required"`
-// }
-//
-// Output objects can be of any type, and will be marshaled to JSON.
-//
-// The handler can return an error, which will be returned to the caller.
 package tonic
 
 import (
@@ -30,22 +12,42 @@ import (
 )
 
 const (
-	query_tag = "query"
-	path_tag  = "path"
+	queryTag = "query"
+	pathTag  = "path"
 )
 
 // An ErrorHook lets you interpret errors returned by your handlers.
 // After analysis, the hook should return a suitable http status code and
 // error payload.
 // This lets you deeply inspect custom error types.
+//
 // See sub-package 'jujuerrhook' for a ready-to-use implementation
 // that relies on juju/errors (https://github.com/juju/errors).
 type ErrorHook func(*gin.Context, error) (int, interface{})
 
+// An ExecHook is the func called to handle a request.
+//
+// It is given as input:
+//	- the gin context
+//	- the wrapping gin-handler
+//	- the function name of the tonic-handler
+//
+// The default ExecHook simply calle the wrapping gin-handler
+// with the gin context.
 type ExecHook func(*gin.Context, gin.HandlerFunc, string)
 
+// A BindHook is the func called by the wrapping gin-handler when binding
+// an incoming request to the tonic-handler's input object.
 type BindHook func(*gin.Context, interface{}) error
 
+// A RenderHook is the last func called by the wrapping gin-handler before returning.
+//
+// It is given as input:
+//	- the gin context
+//	- the HTTP status code
+//	- the response payload
+//
+// Its role is to render the payload to the client.
 type RenderHook func(*gin.Context, int, interface{})
 
 var (
@@ -53,71 +55,43 @@ var (
 	execHook   ExecHook   = DefaultExecHook
 	bindHook   BindHook   = DefaultBindingHook
 	renderHook RenderHook = DefaultRenderHook
-	routes                = make(map[string]*Route)
+
+	// routes is a global map of routes handled with a tonic-enabled handler.
+	// The map is made available through the GetRoutes helper.
+	routes = make(map[string]*Route)
 )
 
-func GetRoutes() map[string]*Route {
-	return routes
-}
-
-// SetErrorHook lets you set your own error hook.
-func SetErrorHook(eh ErrorHook) {
-	if eh != nil {
-		errorHook = eh
-	}
-}
-
-func GetErrorHook() ErrorHook {
-	return errorHook
-}
-
-func SetExecHook(eh ExecHook) {
-	if eh != nil {
-		execHook = eh
-	}
-}
-
-func GetExecHook() ExecHook {
-	return execHook
-}
-
-func SetBindHook(bh BindHook) {
-	if bh != nil {
-		bindHook = bh
-	}
-}
-
-func GetBindHook() BindHook {
-	return bindHook
-}
-
-func SetRenderHook(rh RenderHook) {
-	if rh != nil {
-		renderHook = rh
-	}
-}
-
-func GetRenderHook() RenderHook {
-	return renderHook
-}
-
+// DefaultExecHook is the default exec hook.
+//
+// It simply executes the wrapping gin-handler.
 func DefaultExecHook(c *gin.Context, h gin.HandlerFunc, fname string) { h(c) }
 
+// DefaultErrorHook is the default error hook.
+//
+// It returns a 400 HTTP status with a payload containing
+// the error message.
 func DefaultErrorHook(c *gin.Context, e error) (int, interface{}) {
 	return 400, gin.H{`error`: e.Error()}
 }
 
+// DefaultBindingHook is the default binding hook.
+//
+// It uses gin to bind body parameters to input object.
+// Returns an error if gin binding fails.
 func DefaultBindingHook(c *gin.Context, i interface{}) error {
 	if c.Request.ContentLength == 0 {
 		return nil
 	}
-	err := c.Bind(i)
-	if err != nil {
-		return fmt.Errorf("Error parsing request body: %s", err.Error())
+	if err := c.Bind(i); err != nil {
+		return fmt.Errorf("error parsing request body: %s", err.Error())
 	}
 	return nil
 }
 
+// DefaultRenderHook is the default render hook.
+//
+// It serializes the payload to JSON, or returns an empty body is payload is nil.
+// If gin is running in debug mode, the serialized JSON is indented.
 func DefaultRenderHook(c *gin.Context, status int, payload interface{}) {
 	// Either serialize custom output object or send empty body
 	if payload != nil {
@@ -131,66 +105,129 @@ func DefaultRenderHook(c *gin.Context, status int, payload interface{}) {
 	}
 }
 
-// InputError is an error type returned when tonic failed to bind parameters.
+// GetRoutes returns the routes handled by a tonic-enabled handler.
+// TODO: maybe remove this func and export tonic.Routes var ?
+func GetRoutes() map[string]*Route {
+	return routes
+}
+
+// GetErrorHook returns the current error hook.
+func GetErrorHook() ErrorHook {
+	return errorHook
+}
+
+// SetErrorHook lets you set your own error hook.
+func SetErrorHook(eh ErrorHook) {
+	if eh != nil {
+		errorHook = eh
+	}
+}
+
+// GetExecHook returns the current exec hook.
+func GetExecHook() ExecHook {
+	return execHook
+}
+
+// SetExecHook lets you set your own exec hook.
+func SetExecHook(eh ExecHook) {
+	if eh != nil {
+		execHook = eh
+	}
+}
+
+// GetBindHook returns the current bind hook.
+func GetBindHook() BindHook {
+	return bindHook
+}
+
+// SetBindHook lets you set your own bind hook.
+func SetBindHook(bh BindHook) {
+	if bh != nil {
+		bindHook = bh
+	}
+}
+
+// GetRenderHook returns the current render hook.
+func GetRenderHook() RenderHook {
+	return renderHook
+}
+
+// SetRenderHook lets you set your own render hook.
+func SetRenderHook(rh RenderHook) {
+	if rh != nil {
+		renderHook = rh
+	}
+}
+
+// InputError is an error type returned when tonic fails to bind parameters.
 type InputError string
 
+// Error makes InputError implement the error interface.
 func (ie InputError) Error() string {
 	return string(ie)
 }
 
-// Handler returns a wrapping gin-compatible handler that calls the tonic handler
+// Handler returns a wrapping gin-compatible handler that calls the tonic-handler
 // passed in parameter.
-// The tonic handler may use the following signature:
-// func(*gin.Context, [input object ptr]) ([output object], error)
+//
+// The tonic-handler may use the following signature:
+//
+//  func(*gin.Context, [input object ptr]) ([output object], error)
+//
 // Input and output objects are both optional (tonic analyzes the handler signature reflexively).
 // As such, the minimal accepted signature is:
-// func(*gin.Context) error
+//
+//  func(*gin.Context) error
+//
 // The wrapping gin-handler will handle the binding code (JSON + path/query)
 // and the error handling.
-// This will PANIC if the tonic-handler is of incompatible type.
+//
+// Handler will panic if the tonic-handler is of incompatible type.
 func Handler(f interface{}, retcode int) gin.HandlerFunc {
 
 	fval := reflect.ValueOf(f)
+	if fval.Kind() != reflect.Func {
+		panic(fmt.Sprintf("Handler parameter must be a function, got %T", f))
+	}
+
 	ftype := fval.Type()
 	fname := runtime.FuncForPC(fval.Pointer()).Name()
-
-	if fval.Kind() != reflect.Func {
-		panic(fmt.Sprintf("Handler parameter not a function: %T", f))
-	}
 
 	var typeIn reflect.Type
 	var typeOut reflect.Type
 
 	// Check tonic-handler inputs
-	numin := ftype.NumIn()
-	if numin < 1 || numin > 2 {
-		panic(fmt.Sprintf("Incorrect number of handler input params: %d", numin))
+	numIn := ftype.NumIn()
+	if numIn < 1 || numIn > 2 {
+		panic(fmt.Sprintf("Incorrect number of handler '%s' input params: expected 1 or 2, got %d", fname, numIn))
 	}
-	hasIn := (numin == 2)
+	hasIn := (numIn == 2)
 	if !ftype.In(0).ConvertibleTo(reflect.TypeOf(&gin.Context{})) {
-		panic(fmt.Sprintf("Unsupported type for handler input parameter: %v. Should be gin.Context.", ftype.In(0)))
+		panic(fmt.Sprintf("Unsupported type for handler '%s' input parameter: expected *gin.Context, got %v", fname, ftype.In(0)))
 	}
 	if hasIn {
-		if ftype.In(1).Kind() != reflect.Ptr && ftype.In(1).Elem().Kind() != reflect.Struct {
-			panic(fmt.Sprintf("Unsupported type for handler input parameter: %v. Should be struct ptr.", ftype.In(1)))
+		if ftype.In(1).Kind() != reflect.Ptr || ftype.In(1).Elem().Kind() != reflect.Struct {
+			panic(fmt.Sprintf("Unsupported type for handler '%s' input parameter: expected struct ptr, got %v", fname, ftype.In(1)))
 		} else {
 			typeIn = ftype.In(1).Elem()
 		}
 	}
 
 	// Check tonic handler outputs
-	numout := ftype.NumOut()
-	if numout < 1 || numout > 2 {
-		panic(fmt.Sprintf("Incorrect number of handler output params: %d", numout))
+	numOut := ftype.NumOut()
+	if numOut < 1 || numOut > 2 {
+		panic(fmt.Sprintf("Incorrect number of handler '%s' output params: expected 1 or 2, got %d", fname, numOut))
 	}
-	hasOut := (numout == 2)
+	hasOut := (numOut == 2)
 	errIdx := 0
 	if hasOut {
-		errIdx += 1
+		errIdx++
+		// Output type can be lots of things, we should let it as it is
+		typeOut = ftype.Out(0)
 		switch ftype.Out(0).Kind() {
-		case reflect.Interface, reflect.Ptr:
-			// According to Elem() doc :
-			//  It panics if v's Kind is not Interface or Ptr.
+		case reflect.Ptr:
+			// According to reflect.Type.Elem() doc:
+			// It panics if the type's Kind is not Array, Chan, Map, Ptr, or Slice.
 			typeOut = ftype.Out(0).Elem()
 		default:
 			typeOut = ftype.Out(0)
@@ -198,12 +235,13 @@ func Handler(f interface{}, retcode int) gin.HandlerFunc {
 	}
 	typeOfError := reflect.TypeOf((*error)(nil)).Elem()
 	if !ftype.Out(errIdx).Implements(typeOfError) {
-		panic(fmt.Sprintf("Unsupported type for handler output parameter: %v. Should be error.", ftype.Out(errIdx)))
+		panic(fmt.Sprintf("Unsupported type for handler '%s' output parameter: expected error implementation, got %v", fname, ftype.Out(errIdx)))
 	}
 
 	// Wrapping gin-handler
 	retfunc := func(c *gin.Context) {
 
+		// funcIn contains the input parameters of the tonic-handler call
 		funcIn := []reflect.Value{reflect.ValueOf(c)}
 
 		if hasIn {
@@ -214,12 +252,12 @@ func Handler(f interface{}, retcode int) gin.HandlerFunc {
 				handleError(c, InputError(err.Error()))
 				return
 			}
-			err = bindQueryPath(c, input, query_tag, extractQuery)
+			err = bindQueryPath(c, input, "query", extractQuery)
 			if err != nil {
 				handleError(c, InputError(err.Error()))
 				return
 			}
-			err = bindQueryPath(c, input, path_tag, extractPath)
+			err = bindQueryPath(c, input, "path", extractPath)
 			if err != nil {
 				handleError(c, InputError(err.Error()))
 				return
@@ -230,9 +268,9 @@ func Handler(f interface{}, retcode int) gin.HandlerFunc {
 		// Call tonic-handler
 		ret := fval.Call(funcIn)
 		var errOut interface{}
-		var outval interface{}
+		var outVal interface{}
 		if hasOut {
-			outval = ret[0].Interface()
+			outVal = ret[0].Interface()
 			errOut = ret[1].Interface()
 		} else {
 			errOut = ret[0].Interface()
@@ -240,15 +278,17 @@ func Handler(f interface{}, retcode int) gin.HandlerFunc {
 		// Raised error, handle it
 		if errOut != nil {
 			reterr := errOut.(error)
+			// Push error into gin context
 			c.Error(reterr)
 
 			handleError(c, reterr)
 			return
 		}
 		// Normal output
-		renderHook(c, retcode, outval)
+		renderHook(c, retcode, outVal)
 	}
 
+	// Register route in tonic-enabled routes map
 	routes[fname] = &Route{
 		defaultStatusCode: retcode,
 		handler:           fval,
@@ -260,17 +300,49 @@ func Handler(f interface{}, retcode int) gin.HandlerFunc {
 	return func(c *gin.Context) { execHook(c, retfunc, fname) }
 }
 
+// handleError handles any error raised during the execution of the wrapping gin-handler.
 func handleError(c *gin.Context, err error) {
 	errcode, errpl := errorHook(c, err)
 	renderHook(c, errcode, errpl)
 }
 
+// An extractorFunc extracts data from a gin context according to
+// parameters specified in a field tag.
+//
+// An extractorFunc takes a gin context and a tag value as input.
+//
+// It returns:
+//	- the parameter name
+//	- the parameter values (there may be several)
+//	- an error
+type extractorFunc func(*gin.Context, string) (string, []string, error)
+
+// bindQueryPath binds fields of an input object to query and path parameters from the gin context.
+// It reads targetTag to know, for each field, what to extract using the given extractor func.
 func bindQueryPath(c *gin.Context, in reflect.Value, targetTag string, extractor func(*gin.Context, string) (string, []string, error)) error {
 
 	inType := in.Type().Elem()
 
 	for i := 0; i < in.Elem().NumField(); i++ {
+		// Extract value from gin context
 		fieldType := inType.Field(i)
+
+		if fieldType.Anonymous {
+			inField := in.Elem().Field(i)
+			if inField.Kind() == reflect.Ptr {
+				if inField.IsNil() {
+					inField.Set(reflect.New(inField.Type().Elem()))
+				}
+			} else {
+				inField = inField.Addr()
+			}
+			err := bindQueryPath(c, inField, targetTag, extractor)
+			if err != nil {
+				return err
+			}
+			continue
+		}
+
 		tag := fieldType.Tag.Get(targetTag)
 		if tag == "" {
 			continue
@@ -282,6 +354,8 @@ func bindQueryPath(c *gin.Context, in reflect.Value, targetTag string, extractor
 		if len(values) == 0 {
 			continue
 		}
+
+		// Fill value into input object
 		field := in.Elem().Field(i)
 		if field.Kind() == reflect.Ptr {
 			f := reflect.New(field.Type().Elem())
@@ -299,7 +373,7 @@ func bindQueryPath(c *gin.Context, in reflect.Value, targetTag string, extractor
 			}
 			return nil
 		} else if len(values) > 1 {
-			return fmt.Errorf("Query parameter '%s' does not support multiple values", name)
+			return fmt.Errorf("parameter '%s' does not support multiple values", name)
 		} else {
 			err = bindValue(values[0], field)
 			if err != nil {
@@ -311,26 +385,34 @@ func bindQueryPath(c *gin.Context, in reflect.Value, targetTag string, extractor
 	return nil
 }
 
+// extractQuery is an extractorFunc that extracts a query parameter.
+//
+// It reads the parameter name and whether it is required from the tag,
+// and returns the name, values and an error.
 func extractQuery(c *gin.Context, tag string) (string, []string, error) {
 
-	name, required, defval, err := ExtractTag(tag, true)
+	name, required, defVal, err := ExtractTag(tag, true)
 	if err != nil {
 		return "", nil, err
 	}
 
 	q := c.Request.URL.Query()[name]
 
-	if defval != "" && len(q) == 0 {
-		q = []string{defval}
+	if defVal != "" && len(q) == 0 {
+		q = []string{defVal}
 	}
 
 	if required && len(q) == 0 {
-		return "", nil, fmt.Errorf("Field %s is missing: required.", name)
+		return "", nil, fmt.Errorf("missing required field: %s", name)
 	}
 
 	return name, q, nil
 }
 
+// extractPath is an extractorFunc that extracts a path parameter.
+//
+// It reads the parameter name and whether it is required from the tag,
+// and returns the name, values and an error.
 func extractPath(c *gin.Context, tag string) (string, []string, error) {
 
 	name, required, _, err := ExtractTag(tag, false)
@@ -340,18 +422,24 @@ func extractPath(c *gin.Context, tag string) (string, []string, error) {
 
 	out := c.Param(name)
 	if required && out == "" {
-		return "", nil, fmt.Errorf("Field %s is missing: required.", name)
+		return "", nil, fmt.Errorf("field %s is missing: required", name)
 	}
 	return name, []string{out}, nil
 }
 
+// ExtractTag extracts information from the given tag.
+//
+// Informations returned are:
+//	- string: parameter name
+//	- bool:   whether the parameter is required or not
+//	- string: parameter default value, if any
+//	- error:  any error (invalid tag option for example)
 func ExtractTag(tag string, defaultValue bool) (string, bool, string, error) {
 
-	parts := strings.SplitN(tag, ",", -1)
-	name := parts[0]
-	options := parts[1:]
+	parts := strings.Split(tag, ",")
+	name, options := parts[0], parts[1:]
 
-	var defval string
+	var defVal string
 	var required bool
 	for _, o := range options {
 		o = strings.TrimSpace(o)
@@ -359,14 +447,15 @@ func ExtractTag(tag string, defaultValue bool) (string, bool, string, error) {
 			required = true
 		} else if defaultValue && strings.HasPrefix(o, "default=") {
 			o = strings.TrimPrefix(o, "default=")
-			defval = o
+			defVal = o
 		} else {
-			return "", false, "", fmt.Errorf("Malformed tag for param '%s': unknown opt '%s'", name, o)
+			return "", false, "", fmt.Errorf("malformed tag for param '%s': unknown option '%s'", name, o)
 		}
 	}
-	return name, required, defval, nil
+	return name, required, defVal, nil
 }
 
+// bindValue binds a string value to an actual reflect.Value.
 func bindValue(s string, v reflect.Value) error {
 
 	vIntf := reflect.New(v.Type()).Interface()
@@ -402,7 +491,8 @@ func bindValue(s string, v reflect.Value) error {
 		}
 		v.SetBool(b)
 	default:
-		return fmt.Errorf("Unsupported type for query param bind: %v", v.Kind())
+		return fmt.Errorf("unsupported type for param bind: %v", v.Kind())
 	}
+
 	return nil
 }

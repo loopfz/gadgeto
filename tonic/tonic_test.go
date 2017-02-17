@@ -81,6 +81,7 @@ func TestPathQuery(t *testing.T) {
 	tester.AddCall("query", "GET", "/query?param=foo&param-default=bla", "").Checkers(iffy.ExpectStatus(200), expectString("param-default", "bla"))
 	tester.AddCall("query", "GET", "/query?param=foo", "").Checkers(iffy.ExpectStatus(200), expectString("param-default", "default"))
 	tester.AddCall("query", "GET", "/query?param=foo&param-ptr=bar", "").Checkers(iffy.ExpectStatus(200), expectString("param-ptr", "bar"))
+	tester.AddCall("query", "GET", "/query?param=foo&param-embed=bar", "").Checkers(iffy.ExpectStatus(200), expectString("param-embed", "bar"))
 
 	now, _ := time.Time{}.Add(87 * time.Hour).MarshalText()
 
@@ -130,6 +131,15 @@ type queryIn struct {
 	ParamDefault  string    `query:"param-default, default=default" json:"param-default"`
 	ParamPtr      *string   `query:"param-ptr" json:"param-ptr"`
 	ParamComplex  time.Time `query:"param-complex" json:"param-complex"`
+	*DoubleEmbedded
+}
+
+type Embedded struct {
+	ParamEmbed string `query:"param-embed" json:"param-embed"`
+}
+
+type DoubleEmbedded struct {
+	Embedded
 }
 
 func queryHandler(c *gin.Context, in *queryIn) (*queryIn, error) {
