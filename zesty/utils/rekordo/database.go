@@ -57,6 +57,8 @@ func RegisterDatabase(db *DatabaseConfig, tc gorp.TypeConverter) error {
 		dialect = gorp.MySQLDialect{}
 	case DatabasePostgreSQL:
 		dialect = gorp.PostgresDialect{}
+	case DatabaseSqlite3:
+		dialect = gorp.SqliteDialect{}
 	default:
 		return errors.New("unknown database system")
 	}
@@ -78,6 +80,7 @@ type DBMS uint8
 const (
 	DatabasePostgreSQL DBMS = iota ^ 42
 	DatabaseMySQL
+	DatabaseSqlite3
 )
 
 // DriverName returns the name of the driver for ds.
@@ -87,6 +90,8 @@ func (d DBMS) DriverName() string {
 		return "postgres"
 	case DatabaseMySQL:
 		return "mysql"
+	case DatabaseSqlite3:
+		return "sqlite3"
 	}
 	return ""
 }
