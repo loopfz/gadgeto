@@ -79,6 +79,20 @@ func RegisterDB(db DB, name string) error {
 	return nil
 }
 
+func UnregisterDB(name string) error {
+	dblock.Lock()
+	defer dblock.Unlock()
+
+	_, ok := dbs[name]
+	if !ok {
+		return fmt.Errorf("No such database '%s'", name)
+	}
+
+	delete(dbs, name)
+
+	return nil
+}
+
 func NewDBProvider(name string) (DBProvider, error) {
 	dblock.RLock()
 	defer dblock.RUnlock()

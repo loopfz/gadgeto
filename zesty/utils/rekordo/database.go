@@ -18,11 +18,12 @@ const (
 // DatabaseConfig represents the configuration used to
 // register a new database.
 type DatabaseConfig struct {
-	Name         string
-	DSN          string
-	System       DBMS
-	MaxOpenConns int
-	MaxIdleConns int
+	Name             string
+	DSN              string
+	System           DBMS
+	MaxOpenConns     int
+	MaxIdleConns     int
+	AutoCreateTables bool
 }
 
 // RegisterDatabase creates a gorp map with tables and tc and
@@ -69,6 +70,13 @@ func RegisterDatabase(db *DatabaseConfig, tc gorp.TypeConverter) error {
 	}
 	for _, t := range tableModels {
 		dbmap.AddTableWithName(t.Model, t.Name).SetKeys(t.AutoIncrement, t.Keys...)
+	}
+
+	if db.AutoCreateTables {
+		err = dbmap.CreateTablesIfNotExists()
+		if err != nil {
+			return err
+		}
 	}
 	return zesty.RegisterDB(zesty.NewDB(dbmap), db.Name)
 }
