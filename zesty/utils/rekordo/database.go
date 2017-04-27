@@ -18,11 +18,12 @@ const (
 // DatabaseConfig represents the configuration used to
 // register a new database.
 type DatabaseConfig struct {
-	Name         string
-	DSN          string
-	System       DBMS
-	MaxOpenConns int
-	MaxIdleConns int
+	Name             string
+	DSN              string
+	System           DBMS
+	MaxOpenConns     int
+	MaxIdleConns     int
+	AutoCreateTables bool
 }
 
 // RegisterDatabase creates a gorp map with tables and tc and
@@ -57,6 +58,8 @@ func RegisterDatabase(db *DatabaseConfig, tc gorp.TypeConverter) error {
 		dialect = gorp.MySQLDialect{}
 	case DatabasePostgreSQL:
 		dialect = gorp.PostgresDialect{}
+	case DatabaseSqlite3:
+		dialect = gorp.SqliteDialect{}
 	default:
 		return errors.New("unknown database system")
 	}
@@ -68,6 +71,13 @@ func RegisterDatabase(db *DatabaseConfig, tc gorp.TypeConverter) error {
 	for _, t := range tableModels {
 		dbmap.AddTableWithName(t.Model, t.Name).SetKeys(t.AutoIncrement, t.Keys...)
 	}
+
+	if db.AutoCreateTables {
+		err = dbmap.CreateTablesIfNotExists()
+		if err != nil {
+			return err
+		}
+	}
 	return zesty.RegisterDB(zesty.NewDB(dbmap), db.Name)
 }
 
@@ -78,6 +88,7 @@ type DBMS uint8
 const (
 	DatabasePostgreSQL DBMS = iota ^ 42
 	DatabaseMySQL
+	DatabaseSqlite3
 )
 
 // DriverName returns the name of the driver for ds.
@@ -87,6 +98,8 @@ func (d DBMS) DriverName() string {
 		return "postgres"
 	case DatabaseMySQL:
 		return "mysql"
+	case DatabaseSqlite3:
+		return "sqlite3"
 	}
 	return ""
 }
