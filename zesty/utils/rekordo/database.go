@@ -63,7 +63,7 @@ func RegisterDatabase(db *DatabaseConfig, tc gorp.TypeConverter) error {
 		TypeConverter: tc,
 	}
 	modelsMu.Lock()
-	tableModels, ok := models[db.Name]
+	tableModels := models[db.Name]
 	modelsMu.Unlock()
 	for _, t := range tableModels {
 		dbmap.AddTableWithName(t.Model, t.Name).SetKeys(t.AutoIncrement, t.Keys...)
