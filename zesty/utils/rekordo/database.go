@@ -33,7 +33,7 @@ func RegisterDatabase(db *DatabaseConfig, tc gorp.TypeConverter) error {
 	tableModels, ok := models[db.Name]
 	modelsMu.Unlock()
 	if !ok {
-		return fmt.Errorf("no models registered for database %s", db.Name)
+		fmt.Fprintf(os.Stderr, "no models registered for database %s", db.Name)
 	}
 	dbConn, err := sql.Open(db.System.DriverName(), db.DSN)
 	if err != nil {
