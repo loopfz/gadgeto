@@ -3,7 +3,6 @@ package rekordo
 import (
 	"database/sql"
 	"errors"
-	"fmt"
 
 	"github.com/go-gorp/gorp"
 	"github.com/loopfz/gadgeto/zesty"
