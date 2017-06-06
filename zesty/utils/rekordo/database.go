@@ -64,10 +64,10 @@ func RegisterDatabase(db *DatabaseConfig, tc gorp.TypeConverter) error {
 	}
 	modelsMu.Lock()
 	tableModels := models[db.Name]
-	modelsMu.Unlock()
 	for _, t := range tableModels {
 		dbmap.AddTableWithName(t.Model, t.Name).SetKeys(t.AutoIncrement, t.Keys...)
 	}
+	modelsMu.Unlock()
 
 	if db.AutoCreateTables {
 		err = dbmap.CreateTablesIfNotExists()
