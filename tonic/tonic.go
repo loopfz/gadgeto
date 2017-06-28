@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/satori/go.uuid"
 )
 
 const (
@@ -191,7 +192,7 @@ func Handler(f interface{}, retcode int) gin.HandlerFunc {
 	}
 
 	ftype := fval.Type()
-	fname := runtime.FuncForPC(fval.Pointer()).Name()
+	fname := fmt.Sprintf("%s_%s", runtime.FuncForPC(fval.Pointer()).Name(), uuid.NewV4().String())
 
 	var typeIn reflect.Type
 	var typeOut reflect.Type
