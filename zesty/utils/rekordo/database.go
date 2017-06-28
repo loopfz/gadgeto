@@ -3,7 +3,6 @@ package rekordo
 import (
 	"database/sql"
 	"errors"
-	"fmt"
 
 	"github.com/go-gorp/gorp"
 	"github.com/loopfz/gadgeto/zesty"
@@ -29,12 +28,6 @@ type DatabaseConfig struct {
 // RegisterDatabase creates a gorp map with tables and tc and
 // registers it with zesty.
 func RegisterDatabase(db *DatabaseConfig, tc gorp.TypeConverter) error {
-	modelsMu.Lock()
-	tableModels, ok := models[db.Name]
-	modelsMu.Unlock()
-	if !ok {
-		return fmt.Errorf("no models registered for database %s", db.Name)
-	}
 	dbConn, err := sql.Open(db.System.DriverName(), db.DSN)
 	if err != nil {
 		return err
@@ -68,9 +61,12 @@ func RegisterDatabase(db *DatabaseConfig, tc gorp.TypeConverter) error {
 		Dialect:       dialect,
 		TypeConverter: tc,
 	}
+	modelsMu.Lock()
+	tableModels := models[db.Name]
 	for _, t := range tableModels {
 		dbmap.AddTableWithName(t.Model, t.Name).SetKeys(t.AutoIncrement, t.Keys...)
 	}
+	modelsMu.Unlock()
 
 	if db.AutoCreateTables {
 		err = dbmap.CreateTablesIfNotExists()
