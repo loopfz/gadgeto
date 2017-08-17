@@ -27,6 +27,8 @@ var (
 	dblock sync.RWMutex
 )
 
+type SavePoint uint
+
 /*
  * INTERFACES
  */
@@ -50,8 +52,10 @@ type Tx interface {
 type DBProvider interface {
 	DB() gorp.SqlExecutor
 	Tx() error
+	TxSavepoint() (SavePoint, error)
 	Commit() error
 	Rollback() error
+	RollbackTo(SavePoint) error
 	Close() error
 	Ping() error
 	Stats() sql.DBStats
@@ -118,10 +122,10 @@ func NewTempDBProvider(db DB) DBProvider {
  */
 
 type zestyprovider struct {
-	current gorp.SqlExecutor
-	db      DB
-	tx      Tx
-	nested  int
+	current   gorp.SqlExecutor
+	db        DB
+	tx        Tx
+	savepoint SavePoint
 }
 
 func (zp *zestyprovider) DB() gorp.SqlExecutor {
@@ -133,8 +137,8 @@ func (zp *zestyprovider) Commit() error {
 		return errors.New("No active Tx")
 	}
 
-	if zp.nested > 0 {
-		zp.nested--
+	if zp.savepoint > 0 {
+		zp.savepoint--
 		return nil
 	}
 
@@ -149,48 +153,67 @@ func (zp *zestyprovider) Commit() error {
 }
 
 func (zp *zestyprovider) Tx() error {
-	if zp.tx != nil {
-		s := fmt.Sprintf("tx-nested-%d", zp.nested+1)
-		err := zp.tx.Savepoint(s)
-		if err != nil {
-			return err
-		}
-		zp.nested++
-		return nil
-	}
-
-	tx, err := zp.db.Begin()
-	if err != nil {
-		return err
-	}
-
-	zp.tx = tx
-	zp.current = tx
-
-	return nil
+	_, err := zp.TxSavepoint()
+	return err
 }
 
 func (zp *zestyprovider) Rollback() error {
+	return zp.RollbackTo(zp.savepoint)
+}
+
+const savepointFmt = "tx-savepoint-%d"
+
+func (zp *zestyprovider) TxSavepoint() (SavePoint, error) {
+	if zp.tx == nil {
+		// root transaction
+		tx, err := zp.db.Begin()
+		if err != nil {
+			return 0, err
+		}
+
+		zp.tx = tx
+		zp.current = tx
+	} else {
+		// nested transaction
+		s := fmt.Sprintf(savepointFmt, zp.savepoint+1)
+		err := zp.tx.Savepoint(s)
+		if err != nil {
+			return 0, err
+		}
+
+		zp.savepoint++
+	}
+
+	return zp.savepoint, nil
+}
+
+func (zp *zestyprovider) RollbackTo(sp SavePoint) error {
 	if zp.tx == nil {
 		return errors.New("No active Tx")
 	}
+	if sp > zp.savepoint {
+		// noop
+		return nil
+	}
 
-	if zp.nested > 0 {
-		s := fmt.Sprintf("tx-nested-%d", zp.nested)
+	if sp == 0 {
+		// root transaction
+		err := zp.tx.Rollback()
+		if err != nil {
+			return err
+		}
+
+		zp.resetTx()
+	} else {
+		// nested transaction
+		s := fmt.Sprintf(savepointFmt, sp)
 		err := zp.tx.RollbackToSavepoint(s)
 		if err != nil {
 			return err
 		}
-		zp.nested--
-		return nil
-	}
 
-	err := zp.tx.Rollback()
-	if err != nil {
-		return err
+		zp.savepoint = sp - 1
 	}
-
-	zp.resetTx()
 
 	return nil
 }
@@ -198,6 +221,7 @@ func (zp *zestyprovider) Rollback() error {
 func (zp *zestyprovider) resetTx() {
 	zp.current = zp.db
 	zp.tx = nil
+	zp.savepoint = 0
 }
 
 func (zp *zestyprovider) Close() error {
