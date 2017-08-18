@@ -12,7 +12,62 @@ const (
 	dbName = "test"
 	value1 = 1
 	value2 = 2
+	value3 = 3
+	value4 = 4
 )
+
+func expectValue(t *testing.T, dbp DBProvider, expected int64) {
+	i, err := dbp.DB().SelectInt(`SELECT id FROM "t"`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if i != expected {
+		t.Fatalf("unexpected value found in table, expecting %d", expected)
+	}
+}
+
+func insertValue(t *testing.T, dbp DBProvider, value int64) {
+	_, err := dbp.DB().Exec(`INSERT INTO "t" VALUES (?)`, value)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func updateValue(t *testing.T, dbp DBProvider, value int64) {
+	_, err := dbp.DB().Exec(`UPDATE "t" SET id = ?`, value)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func rollback(t *testing.T, dbp DBProvider) {
+	err := dbp.Rollback()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func rollbackTo(t *testing.T, dbp DBProvider, sp SavePoint) {
+	err := dbp.RollbackTo(sp)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func tx(t *testing.T, dbp DBProvider) {
+	err := dbp.Tx()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func txSavepoint(t *testing.T, dbp DBProvider) SavePoint {
+	sp, err := dbp.TxSavepoint()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return sp
+}
 
 func TestTransaction(t *testing.T) {
 	db, err := sql.Open("sqlite3", ":memory:")
@@ -37,66 +92,44 @@ func TestTransaction(t *testing.T) {
 	}
 
 	// first transaction: insert value 1
-	sp0, err := dbp.TxSavepoint()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if sp0 != 0 {
-		t.Fatal("first transaction savepoint should be == 0")
-	}
+	tx(t, dbp)
 
-	_, err = dbp.DB().Exec(`INSERT INTO "t" VALUES (?)`, value1)
-	if err != nil {
-		t.Fatal(err)
-	}
+	insertValue(t, dbp, value1)
+
+	expectValue(t, dbp, value1)
 
 	// second transaction: update value to 2
-	sp1, err := dbp.TxSavepoint()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if sp1 != 1 {
-		t.Fatal("first transaction savepoint should be == 1")
-	}
+	sp1 := txSavepoint(t, dbp)
 
-	_, err = dbp.DB().Exec(`UPDATE "t" SET id = ?`, value2)
-	if err != nil {
-		t.Fatal(err)
-	}
+	updateValue(t, dbp, value2)
+	expectValue(t, dbp, value2)
 
-	i, err := dbp.DB().SelectInt(`SELECT id FROM "t"`)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if i != value2 {
-		t.Fatal("unexpected value found in table, expecting 2")
-	}
+	tx(t, dbp)
+
+	updateValue(t, dbp, value3)
+	expectValue(t, dbp, value3)
+
+	tx(t, dbp)
+
+	updateValue(t, dbp, value4)
+	expectValue(t, dbp, value4)
+
+	rollback(t, dbp)
+
+	expectValue(t, dbp, value3)
 
 	// rollback on second transaction: value back to 1
-	err = dbp.Rollback()
-	if err != nil {
-		t.Fatal(err)
-	}
+	rollbackTo(t, dbp, sp1)
 
-	i, err = dbp.DB().SelectInt(`SELECT id FROM "t"`)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if i != value1 {
-		t.Fatal("unexpected value found in table, expecting 1")
-	}
+	expectValue(t, dbp, value1)
 
 	// noop rollback: savepoint already removed in previous rollback
-	err = dbp.RollbackTo(sp1)
-	if err != nil {
-		t.Fatal("rollback to previous savepoint should return nil")
-	}
+	rollbackTo(t, dbp, sp1)
+
+	expectValue(t, dbp, value1)
 
 	// rollback on first transaction: empty table
-	err = dbp.Rollback()
-	if err != nil {
-		t.Fatal(err)
-	}
+	rollback(t, dbp)
 
 	j, err := dbp.DB().SelectNullInt(`SELECT id FROM "t"`)
 	if err != nil {
