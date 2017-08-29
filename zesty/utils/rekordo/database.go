@@ -23,6 +23,7 @@ type DatabaseConfig struct {
 	MaxOpenConns     int
 	MaxIdleConns     int
 	AutoCreateTables bool
+	Dialect          gorp.Dialect
 }
 
 // RegisterDatabase creates a gorp map with tables and tc and
@@ -44,21 +45,22 @@ func RegisterDatabase(db *DatabaseConfig, tc gorp.TypeConverter) error {
 	}
 	dbConn.SetMaxIdleConns(db.MaxIdleConns)
 
-	// Select the proper dialect used by gorp.
-	var dialect gorp.Dialect
-	switch db.System {
-	case DatabaseMySQL:
-		dialect = gorp.MySQLDialect{}
-	case DatabasePostgreSQL:
-		dialect = gorp.PostgresDialect{}
-	case DatabaseSqlite3:
-		dialect = gorp.SqliteDialect{}
-	default:
-		return errors.New("unknown database system")
+	if db.Dialect == nil {
+		// Select the proper dialect used by gorp.
+		switch db.System {
+		case DatabaseMySQL:
+			db.Dialect = gorp.MySQLDialect{}
+		case DatabasePostgreSQL:
+			db.Dialect = gorp.PostgresDialect{}
+		case DatabaseSqlite3:
+			db.Dialect = gorp.SqliteDialect{}
+		default:
+			return errors.New("unknown database system")
+		}
 	}
 	dbmap := &gorp.DbMap{
 		Db:            dbConn,
-		Dialect:       dialect,
+		Dialect:       db.Dialect,
 		TypeConverter: tc,
 	}
 	modelsMu.Lock()
