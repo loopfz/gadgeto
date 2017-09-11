@@ -83,7 +83,7 @@ func DefaultBindingHook(c *gin.Context, i interface{}) error {
 	if c.Request.ContentLength == 0 {
 		return nil
 	}
-	if err := c.Bind(i); err != nil {
+	if err := c.BindJSON(i); err != nil {
 		return fmt.Errorf("error parsing request body: %s", err.Error())
 	}
 	return nil
