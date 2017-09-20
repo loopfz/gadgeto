@@ -3,6 +3,8 @@ package tonic
 import (
 	"encoding"
 	"fmt"
+	"io"
+	"net/http"
 	"reflect"
 	"runtime"
 	"strconv"
@@ -80,10 +82,10 @@ func DefaultErrorHook(c *gin.Context, e error) (int, interface{}) {
 // It uses gin to bind body parameters to input object.
 // Returns an error if gin binding fails.
 func DefaultBindingHook(c *gin.Context, i interface{}) error {
-	if c.Request.ContentLength == 0 {
+	if c.Request.ContentLength == 0 || c.Request.Method == http.MethodGet {
 		return nil
 	}
-	if err := c.BindJSON(i); err != nil {
+	if err := c.BindJSON(i); err != nil && err != io.EOF {
 		return fmt.Errorf("error parsing request body: %s", err.Error())
 	}
 	return nil
