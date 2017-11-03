@@ -27,26 +27,26 @@ type DatabaseConfig struct {
 
 // RegisterDatabase creates a gorp map with tables and tc and
 // registers it with zesty.
-func RegisterDatabase(db *DatabaseConfig, tc gorp.TypeConverter) error {
-	dbConn, err := sql.Open(db.System.DriverName(), db.DSN)
+func RegisterDatabase(dbcfg *DatabaseConfig, tc gorp.TypeConverter) (zesty.DB, error) {
+	dbConn, err := sql.Open(dbcfg.System.DriverName(), dbcfg.DSN)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	// Make sure we have proper values for the database
 	// settings, and replace them with default if necessary
 	// before applying to the new connection.
-	if db.MaxOpenConns == 0 {
-		db.MaxOpenConns = maxOpenConns
+	if dbcfg.MaxOpenConns == 0 {
+		dbcfg.MaxOpenConns = maxOpenConns
 	}
-	dbConn.SetMaxOpenConns(db.MaxOpenConns)
-	if db.MaxIdleConns == 0 {
-		db.MaxIdleConns = maxIdleConns
+	dbConn.SetMaxOpenConns(dbcfg.MaxOpenConns)
+	if dbcfg.MaxIdleConns == 0 {
+		dbcfg.MaxIdleConns = maxIdleConns
 	}
-	dbConn.SetMaxIdleConns(db.MaxIdleConns)
+	dbConn.SetMaxIdleConns(dbcfg.MaxIdleConns)
 
 	// Select the proper dialect used by gorp.
 	var dialect gorp.Dialect
-	switch db.System {
+	switch dbcfg.System {
 	case DatabaseMySQL:
 		dialect = gorp.MySQLDialect{}
 	case DatabasePostgreSQL:
@@ -54,7 +54,7 @@ func RegisterDatabase(db *DatabaseConfig, tc gorp.TypeConverter) error {
 	case DatabaseSqlite3:
 		dialect = gorp.SqliteDialect{}
 	default:
-		return errors.New("unknown database system")
+		return nil, errors.New("unknown database system")
 	}
 	dbmap := &gorp.DbMap{
 		Db:            dbConn,
@@ -62,19 +62,23 @@ func RegisterDatabase(db *DatabaseConfig, tc gorp.TypeConverter) error {
 		TypeConverter: tc,
 	}
 	modelsMu.Lock()
-	tableModels := models[db.Name]
+	tableModels := models[dbcfg.Name]
 	for _, t := range tableModels {
 		dbmap.AddTableWithName(t.Model, t.Name).SetKeys(t.AutoIncrement, t.Keys...)
 	}
 	modelsMu.Unlock()
 
-	if db.AutoCreateTables {
+	if dbcfg.AutoCreateTables {
 		err = dbmap.CreateTablesIfNotExists()
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
-	return zesty.RegisterDB(zesty.NewDB(dbmap), db.Name)
+	db := zesty.NewDB(dbmap)
+	if err := zesty.RegisterDB(db, dbcfg.Name); err != nil {
+		return nil, err
+	}
+	return db, nil
 }
 
 // DBMS represents a database management system.
