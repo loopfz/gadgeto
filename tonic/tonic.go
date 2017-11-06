@@ -16,8 +16,9 @@ import (
 )
 
 const (
-	queryTag = "query"
-	pathTag  = "path"
+	queryTag        = "query"
+	pathTag         = "path"
+	DefaultMaxBytes = 256 * 1024 // default to max 256ko body
 )
 
 // An ErrorHook lets you interpret errors returned by your handlers.
@@ -83,6 +84,7 @@ func DefaultErrorHook(c *gin.Context, e error) (int, interface{}) {
 // It uses gin to bind body parameters to input object.
 // Returns an error if gin binding fails.
 func DefaultBindingHook(c *gin.Context, i interface{}) error {
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, DefaultMaxBytes)
 	if c.Request.ContentLength == 0 || c.Request.Method == http.MethodGet {
 		return nil
 	}
