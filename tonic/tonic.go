@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
 	"github.com/satori/go.uuid"
 )
 
@@ -85,7 +86,7 @@ func DefaultBindingHook(c *gin.Context, i interface{}) error {
 	if c.Request.ContentLength == 0 || c.Request.Method == http.MethodGet {
 		return nil
 	}
-	if err := c.BindJSON(i); err != nil && err != io.EOF {
+	if err := c.ShouldBindWith(i, binding.JSON); err != nil && err != io.EOF {
 		return fmt.Errorf("error parsing request body: %s", err.Error())
 	}
 	return nil
