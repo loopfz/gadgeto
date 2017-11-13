@@ -189,7 +189,7 @@ func (ie InputError) Error() string {
 // and the error handling.
 //
 // Handler will panic if the tonic-handler is of incompatible type.
-func Handler(f interface{}, retcode int) gin.HandlerFunc {
+func Handler(f interface{}, retcode int, options ...func(*Route)) gin.HandlerFunc {
 
 	fval := reflect.ValueOf(f)
 	if fval.Kind() != reflect.Func {
@@ -295,15 +295,40 @@ func Handler(f interface{}, retcode int) gin.HandlerFunc {
 	}
 
 	// Register route in tonic-enabled routes map
-	routes[fname] = &Route{
+	route := &Route{
 		defaultStatusCode: retcode,
 		handler:           fval,
 		handlerType:       ftype,
 		inputType:         typeIn,
 		outputType:        typeOut,
 	}
+	for _, opt := range options {
+		opt(route)
+	}
+	routes[fname] = route
 
 	return func(c *gin.Context) { execHook(c, retfunc, fname) }
+}
+
+// Description set the description of a route.
+func Description(s string) func(*Route) {
+	return func(r *Route) {
+		r.description = s
+	}
+}
+
+// Description set the summary of a route.
+func Summary(s string) func(*Route) {
+	return func(r *Route) {
+		r.summary = s
+	}
+}
+
+// Deprecated set the deprecated flag of a route.
+func Deprecated(b bool) func(*Route) {
+	return func(r *Route) {
+		r.deprecated = b
+	}
 }
 
 // handleError handles any error raised during the execution of the wrapping gin-handler.
