@@ -16,6 +16,7 @@ type Route struct {
 	defaultStatusCode int
 
 	description string
+	summary     string
 
 	// handler is the tonic handler.
 	handler reflect.Value
@@ -27,6 +28,8 @@ type Route struct {
 	// outputType is the type of the output object, if any.
 	// Can be nil.
 	outputType reflect.Type
+
+	deprecated bool
 }
 
 // GetVerb returns the HTTP verb of the route.
@@ -44,6 +47,11 @@ func (r *Route) GetDescription() string {
 	return r.description
 }
 
+// GetSummary returns the summary of the route.
+func (r *Route) GetSummary() string {
+	return r.summary
+}
+
 // GetDefaultStatusCode returns the default status code of the route.
 func (r *Route) GetDefaultStatusCode() int {
 	return r.defaultStatusCode
@@ -52,6 +60,11 @@ func (r *Route) GetDefaultStatusCode() int {
 // GetHandler returns the handler of the route.
 func (r *Route) GetHandler() reflect.Value {
 	return r.handler
+}
+
+// GetDeprecated returns the deprecated flag of the route.
+func (r *Route) GetDeprecated() bool {
+	return r.deprecated
 }
 
 // GetInType returns the input type of the route.

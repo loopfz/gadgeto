@@ -26,15 +26,18 @@ type Operation struct {
 	Responses        map[string]Response `json:"responses"`
 	Tags             []string            `json:"tags,omitempty"`
 	IsMonitoring     bool                `json:"-"`
+	Deprecated       bool                `json:"deprecated"`
 }
 
 //NewOperation returns an op
-func NewOperation(httpMethod, nickname, summary, typ, description string) (op Operation) {
+func NewOperation(httpMethod, nickname, summary, typ, description string, deprecated bool) (op Operation) {
 
 	op.HttpMethod = httpMethod
 	op.Nickname = nickname
 	op.Summary = summary
 	op.Description = description
+	op.Summary = summary
+	op.Deprecated = deprecated
 	op.Type = typ
 	if op.Type == "" {
 		op.Type = "void"

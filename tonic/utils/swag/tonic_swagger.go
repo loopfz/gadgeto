@@ -1,8 +1,6 @@
 package swag
 
 import (
-	"encoding/json"
-
 	"github.com/gin-gonic/gin"
 	"github.com/loopfz/gadgeto/tonic"
 	"github.com/loopfz/gadgeto/tonic/utils/bootstrap"
@@ -14,21 +12,13 @@ var (
 	api *swagger.ApiDeclaration // singleton api declaration, generated once
 )
 
-func Swagger(e *gin.Engine, godocStr string) gin.HandlerFunc {
+func Swagger(e *gin.Engine, version string) gin.HandlerFunc {
 	if api == nil {
 		bootstrap.Bootstrap(e)
 
-		godoc := &doc.Infos{}
-		if godocStr != "" {
-			err := json.Unmarshal([]byte(godocStr), &godoc)
-			if err != nil {
-				panic(err)
-			}
-		}
-
 		// generate Api Declaration
 		gen := NewSchemaGenerator()
-		if err := gen.GenerateSwagDeclaration(tonic.GetRoutes(), "", "", godoc); err != nil {
+		if err := gen.GenerateSwagDeclaration(tonic.GetRoutes(), "", version, &doc.Infos{}); err != nil {
 			panic(err)
 		}
 
