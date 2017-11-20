@@ -12,21 +12,35 @@ var (
 	api *swagger.ApiDeclaration // singleton api declaration, generated once
 )
 
-func Swagger(e *gin.Engine, version string) gin.HandlerFunc {
+func Swagger(e *gin.Engine, title string, options ...func(*swagger.ApiDeclaration)) gin.HandlerFunc {
 	if api == nil {
 		bootstrap.Bootstrap(e)
 
 		// generate Api Declaration
 		gen := NewSchemaGenerator()
-		if err := gen.GenerateSwagDeclaration(tonic.GetRoutes(), "", version, &doc.Infos{}); err != nil {
+		if err := gen.GenerateSwagDeclaration(tonic.GetRoutes(), "", "", &doc.Infos{}); err != nil {
 			panic(err)
 		}
-
-		// store once
 		api = gen.apiDeclaration
-	}
 
+		api.SwaggerApiInfo.Title = title
+		for _, opt := range options {
+			opt(api)
+		}
+	}
 	return func(c *gin.Context) {
 		c.JSON(200, api)
+	}
+}
+
+func Version(version string) func(*swagger.ApiDeclaration) {
+	return func(a *swagger.ApiDeclaration) {
+		a.SwaggerApiInfo.Version = version
+	}
+}
+
+func BasePath(path string) func(*swagger.ApiDeclaration) {
+	return func(a *swagger.ApiDeclaration) {
+		a.BasePath = path
 	}
 }

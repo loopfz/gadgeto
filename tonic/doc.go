@@ -113,7 +113,7 @@ You can also easily serve auto-generated (using tonic data) swagger documentatio
         tonic.SetErrorHook(jujerr.ErrHook)
         r := gin.Default()
         r.GET("/hello/:name", tonic.Handler(GreetUser, 200))
-        r.GET("/swagger.json", swag.Swagger(r, "1.0"))
+        r.GET("/swagger.json", swag.Swagger(r, "MyAPI", swag.Version("v1.0"), swag.BasePath("/foo/bar")))
         r.Run(":8080")
     }
 */
