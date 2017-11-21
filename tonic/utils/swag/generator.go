@@ -332,7 +332,11 @@ func (s *SchemaGenerator) getStructFields(t reflect.Type, ns nameSetter) map[str
 		if t.Field(i).Anonymous {
 			//For anonymous (embedded) fields, we flatten their structure, ie, we add the fields
 			//to the parent model.
-			dbModelFields := s.getStructFields(t.Field(i).Type, ns)
+			typeToUse := t.Field(i).Type
+			if typeToUse.Kind() == reflect.Ptr {
+				typeToUse = t.Field(i).Type.Elem()
+			}
+			dbModelFields := s.getStructFields(typeToUse, ns)
 			for fieldName, property := range dbModelFields {
 				structFields[fieldName] = property
 			}
