@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -17,51 +16,31 @@ import (
 type Tester struct {
 	t      *testing.T
 	r      http.Handler
-	Calls  []*Call
+	Calls  []Call
 	values Values
 }
 
 type Headers map[string]string
 
-type Call struct {
-	Name       string
-	Method     string
-	QueryStr   string
-	Body       string
-	headers    Headers
-	respObject interface{}
-	checkers   []Checker
-}
-
-func (c *Call) ResponseObject(respObject interface{}) *Call {
-	c.respObject = respObject
-	return c
-}
-
-func (c *Call) Headers(h Headers) *Call {
-	c.headers = h
-	return c
-}
-
-func (c *Call) Checkers(ch ...Checker) *Call {
-	c.checkers = ch
-	return c
-}
-
 type Checker func(r *http.Response, body string, respObject interface{}) error
+
+type TemplaterFunc func(s string) string
+
+type MultipartForm map[string]string
 
 // Tester
 
-func NewTester(t *testing.T, r http.Handler, calls ...*Call) *Tester {
+func NewTester(t *testing.T, r http.Handler, calls ...Call) *Tester {
 	return &Tester{
 		t:      t,
 		r:      r,
 		values: make(Values),
+		Calls:  calls,
 	}
 }
 
-func (t *Tester) AddCall(name, method, querystr, body string) *Call {
-	c := &Call{
+func (t *Tester) AddCall(name, method, querystr, body string) Call {
+	c := &JSONCall{
 		Name:     name,
 		Method:   method,
 		QueryStr: querystr,
@@ -71,24 +50,23 @@ func (t *Tester) AddCall(name, method, querystr, body string) *Call {
 	return c
 }
 
+func (t *Tester) AddMultipartCall(name, method, querystr string, form MultipartForm) Call {
+	c := &MultipartCall{
+		Name:          name,
+		Method:        method,
+		QueryStr:      querystr,
+		MultipartForm: form,
+	}
+	t.Calls = append(t.Calls, c)
+	return c
+}
+
 func (t *Tester) Run() {
 	for _, c := range t.Calls {
-		var body io.Reader
-		if c.Body != "" {
-			body = bytes.NewBuffer([]byte(t.applyTemplate(c.Body)))
-		}
-		req, err := http.NewRequest(c.Method, t.applyTemplate(c.QueryStr), body)
+		req, err := c.BuildHTTPRequest(t.applyTemplate)
 		if err != nil {
 			t.t.Error(err)
 			continue
-		}
-		if c.Body != "" {
-			req.Header.Set("content-type", "application/json")
-		}
-		if c.headers != nil {
-			for k, v := range c.headers {
-				req.Header.Set(t.applyTemplate(k), t.applyTemplate(v))
-			}
 		}
 		w := httptest.NewRecorder()
 		t.r.ServeHTTP(w, req)
@@ -101,24 +79,13 @@ func (t *Tester) Run() {
 			}
 			respBody = string(rb)
 			resp.Body.Close()
-			if c.respObject != nil {
-				err = json.Unmarshal(rb, c.respObject)
-				if err != nil {
-					t.t.Error(err)
-				}
-			}
-			var retJson map[string]interface{}
-			err = json.Unmarshal(rb, &retJson)
-			if err == nil {
-				t.values[c.Name] = retJson
-			}
-		}
-		for _, checker := range c.checkers {
-			err = checker(resp, respBody, c.respObject)
+			retJson, err := c.UnmarshalResponse(rb)
 			if err != nil {
-				t.t.Errorf("%s: %s", c.Name, err)
+				t.t.Error(err)
 			}
+			t.values[c.GetName()] = retJson
 		}
+		c.PerformChecks(resp, respBody, t.t)
 	}
 }
 
