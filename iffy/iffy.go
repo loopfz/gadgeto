@@ -43,7 +43,12 @@ func (t *Tester) AddCall(name, method, querystr string, body interface{}) *Call 
 		bodyInterface = body.(Body)
 	default:
 		// for compat with old string
-		bodyInterface = &StringBody{fmt.Sprintf("%v", body)}
+		if val, ok := body.(string); ok && val != "" {
+			bodyInterface = &StringBody{val}
+		} else {
+			// todo what do we do here ?
+			bodyInterface = &NoopBody{}
+		}
 	}
 	c := &Call{
 		Name:     name,
@@ -67,7 +72,10 @@ func (t *Tester) Run() {
 			t.t.Error(err)
 			continue
 		}
-		req.Header.Set("content-type", c.Body.ContentType())
+		contentType := c.Body.ContentType()
+		if contentType != "" {
+			req.Header.Set("content-type", c.Body.ContentType())
+		}
 		if c.headers != nil {
 			for k, v := range c.headers {
 				req.Header.Set(t.applyTemplate(k), t.applyTemplate(v))
