@@ -1,6 +1,12 @@
 iffy helps you test http handlers.
 
-We assume JSON for any marshaling/unmarshaling. If you use something else, that's fine, but the advanced features (responseObject + templating) will not work.
+We assume JSON for any unmarshaling. If you use something else, that's fine, but the advanced features (responseObject + templating) will not work.
+
+Supported for marshaling:
+
+- json (assumed default)
+- multipart
+
 
 Example:
 
@@ -25,10 +31,14 @@ func TestFoo(t *testing.T) {
         // The response body will be unmarshaled into it, then it will be presented to the Checker functions (parameter 'responseObject')
         // That way your custom checkers can directly use your business objects (ExpectValidFoo)
         tester.AddCall("createfoo", "POST", "/foo", `{"bar": "baz"}`).ResponseObject(&Foo{}).Checkers(iffy.ExpectStatus(201), ExpectValidFoo)
+        tester.AddCall("createfoo", "POST", "/foo", iffy.NewJSONBody(struct{Bar string `json:"bar"`}{Bar: "baz"})).ResponseObject(&Foo{}).Checkers(iffy.ExpectStatus(201), ExpectValidFoo)
 
         // You can template query string and/or body using partial results from previous calls
         // e.g.: delete the object that was created in a previous step
         tester.AddCall("deletefoo", "DELETE", "/foo/{{.createfoo.id}}", "").Checkers(iffy.ExpectStatus(204))
+
+        // You can also specify a multipart body to your call
+        tester.AddCall("multipartfoo", "POST", "/foo/multipart", iffy.NewMultipartBody().Set("file", &iffy.MultipartBodyFile{"/tmp/test.png"})).Checkers(iffy.ExpectStatus(200))
 
         tester.Run()
 }
