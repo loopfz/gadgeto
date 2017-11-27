@@ -283,11 +283,7 @@ func Handler(f interface{}, retcode int, options ...func(*Route)) gin.HandlerFun
 		}
 		// Raised error, handle it
 		if errOut != nil {
-			reterr := errOut.(error)
-			// Push error into gin context
-			c.Error(reterr)
-
-			handleError(c, reterr)
+			handleError(c, errOut.(error))
 			return
 		}
 		// Normal output
@@ -333,6 +329,10 @@ func Deprecated(b bool) func(*Route) {
 
 // handleError handles any error raised during the execution of the wrapping gin-handler.
 func handleError(c *gin.Context, err error) {
+	if len(c.Errors) == 0 {
+		// Push error into gin context
+		c.Error(err)
+	}
 	errcode, errpl := errorHook(c, err)
 	renderHook(c, errcode, errpl)
 }
