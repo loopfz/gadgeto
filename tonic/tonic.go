@@ -18,6 +18,7 @@ import (
 const (
 	queryTag        = "query"
 	pathTag         = "path"
+	enumTag         = "enum"
 	DefaultMaxBytes = 256 * 1024 // default to max 256ko body
 )
 
@@ -406,6 +407,15 @@ func bindQueryPath(c *gin.Context, in reflect.Value, targetTag string, extractor
 		} else if len(values) > 1 {
 			return fmt.Errorf("parameter '%s' does not support multiple values", name)
 		} else {
+			enum := fieldType.Tag.Get(enumTag)
+			if enum != "" {
+				enumValues := strings.Split(strings.TrimSpace(enum), ",")
+				if len(enumValues) != 0 {
+					if !sliceContains(enumValues, values[0]) {
+						return fmt.Errorf("parameter '%s' has not an acceptable value, enum=%v", name, enumValues)
+					}
+				}
+			}
 			err = bindValue(values[0], field)
 			if err != nil {
 				return err
@@ -414,6 +424,15 @@ func bindQueryPath(c *gin.Context, in reflect.Value, targetTag string, extractor
 	}
 
 	return nil
+}
+
+func sliceContains(in []string, s string) bool {
+	for _, v := range in {
+		if v == s {
+			return true
+		}
+	}
+	return false
 }
 
 // extractQuery is an extractorFunc that extracts a query parameter.

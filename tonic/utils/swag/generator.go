@@ -240,6 +240,14 @@ func (s *SchemaGenerator) newParamFromStructField(f reflect.StructField, bodyMod
 		refId,
 	)
 
+	if tag := f.Tag.Get("enum"); tag != "" {
+		p.Enum = strings.Split(tag, ",")
+	}
+	p.Default = paramsDefault(f)
+
+	// extra swagger specific tags.
+	p.CollectionFormat = f.Tag.Get("swagger-collection-format")
+
 	return &p
 }
 
