@@ -96,12 +96,18 @@ func (s *SchemaGenerator) generateOperation(route *tonic.Route) (*swagger.Operat
 	in := route.GetInType()
 	out := route.GetOutType()
 
+	desc := s.docInfos.FunctionsDoc[route.GetHandlerNameWithPackage()]
+	if desc == "" {
+		desc = route.GetDescription()
+	}
+
 	op := swagger.NewOperation(
 		route.GetVerb(),
 		route.GetHandlerName(),
-		route.GetDescription(),
+		route.GetSummary(),
 		s.generateSwagModel(out, nil),
-		s.docInfos.FunctionsDoc[route.GetHandlerNameWithPackage()],
+		desc,
+		route.GetDeprecated(),
 	)
 
 	if err := s.setOperationParams(&op, in); err != nil {
@@ -130,7 +136,15 @@ func (s *SchemaGenerator) setOperationResponse(op *swagger.Operation, t reflect.
 	schema := swagger.Schema{}
 	schemaType := s.generateSwagModel(t, nil)
 	if strings.Contains(schemaType, "#/") {
-		schema.Ref = schemaType
+		if t.Kind() == reflect.Slice {
+			schema.Type = "array"
+			if schema.Items == nil {
+				schema.Items = make(map[string]string)
+			}
+			schema.Items["$ref"] = schemaType
+		} else {
+			schema.Ref = schemaType
+		}
 	} else {
 		schema.Type = schemaType
 	}
@@ -158,14 +172,30 @@ func (s *SchemaGenerator) setOperationParams(op *swagger.Operation, in reflect.T
 	var body *swagger.Model
 
 	for i := 0; i < in.NumField(); i++ {
-		p := s.newParamFromStructField(in.Field(i), &body)
-		if p != nil {
-			if doc := s.docInfos.StructFieldsDoc[in.Name()]; doc != nil {
-				if fieldDoc := doc[in.Field(i).Name]; fieldDoc != "" {
-					p.Description = strings.TrimSuffix(fieldDoc, "\n")
+		// Embedded field found, extract its fields
+		// as top-level parameters.
+		if in.Field(i).Anonymous {
+			for y := 0; y < in.Field(i).Type.NumField(); y++ {
+				p := s.newParamFromStructField(in.Field(i).Type.Field(y), &body)
+				if p != nil {
+					if doc := s.docInfos.StructFieldsDoc[in.Name()]; doc != nil {
+						if fieldDoc := doc[in.Field(i).Name]; fieldDoc != "" {
+							p.Description = strings.TrimSuffix(fieldDoc, "\n")
+						}
+					}
+					op.AddParameter(*p)
 				}
 			}
-			op.AddParameter(*p)
+		} else {
+			p := s.newParamFromStructField(in.Field(i), &body)
+			if p != nil {
+				if doc := s.docInfos.StructFieldsDoc[in.Name()]; doc != nil {
+					if fieldDoc := doc[in.Field(i).Name]; fieldDoc != "" {
+						p.Description = strings.TrimSuffix(fieldDoc, "\n")
+					}
+				}
+				op.AddParameter(*p)
+			}
 		}
 	}
 	if body != nil {
@@ -209,6 +239,14 @@ func (s *SchemaGenerator) newParamFromStructField(f reflect.StructField, bodyMod
 		format,
 		refId,
 	)
+
+	if tag := f.Tag.Get("enum"); tag != "" {
+		p.Enum = strings.Split(tag, ",")
+	}
+	p.Default = paramsDefault(f)
+
+	// extra swagger specific tags.
+	p.CollectionFormat = f.Tag.Get("swagger-collection-format")
 
 	return &p
 }
@@ -299,10 +337,14 @@ func (s *SchemaGenerator) getStructFields(t reflect.Type, ns nameSetter) map[str
 			continue
 		}
 
-		if *name == "DBModel" {
-			//For properties with name DBModel we flatten the structure, ie, we add its fields
+		if t.Field(i).Anonymous {
+			//For anonymous (embedded) fields, we flatten their structure, ie, we add the fields
 			//to the parent model.
-			dbModelFields := s.getStructFields(t.Field(i).Type, ns)
+			typeToUse := t.Field(i).Type
+			if typeToUse.Kind() == reflect.Ptr {
+				typeToUse = t.Field(i).Type.Elem()
+			}
+			dbModelFields := s.getStructFields(typeToUse, ns)
 			for fieldName, property := range dbModelFields {
 				structFields[fieldName] = property
 			}
@@ -383,7 +425,7 @@ func (s *SchemaGenerator) fieldToModelProperty(f reflect.StructField) *swagger.M
 			}
 		} else if f.Type.Kind() == reflect.Map {
 			if f.Type.Key().Kind() != reflect.String {
-				fmt.Fprintln(os.Stderr, "Type not supported, only map with string keys, got %: ", f.Type.Key())
+				fmt.Fprintln(os.Stderr, "Type not supported, only map with string keys, got: ", f.Type.Key())
 			}
 			p.Type = "object"
 			p.AdditionalProperties = &swagger.NestedItems{}

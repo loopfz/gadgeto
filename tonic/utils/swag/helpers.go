@@ -14,18 +14,14 @@ const (
 	path_tag  = "path"
 )
 
-// why two different funcs for the same ???
 func getFieldName(field reflect.StructField) *string {
-	// name is taken from json tag if present
-	name := field.Tag.Get("json")
-	name = strings.Replace(name, ",omitempty", "", -1)
+	name := paramName(field)
 	if name == "-" {
 		return nil
 	}
 	if name == "" {
-		name = field.Name
+		return &field.Name
 	}
-
 	return &name
 }
 
@@ -43,13 +39,15 @@ func paramName(f reflect.StructField) string {
 	if jTag != "" {
 		tag = jTag
 	}
-	tag = strings.Replace(tag, " ", "", -1)
-	tag = strings.Replace(tag, ",required", "", -1)
-	tag = strings.Replace(tag, ",omitempty", "", -1)
-	if tag == "" {
-		tag = f.Name
+	var name string
+	parts := strings.Split(tag, ",")
+	if len(parts) > 0 {
+		name = parts[0]
 	}
-	return tag
+	if name == "" {
+		return f.Name
+	}
+	return name
 }
 
 func paramDescription(f reflect.StructField) string {
@@ -83,6 +81,30 @@ func paramType(f reflect.StructField) string {
 		return path_tag
 	}
 	return "body"
+}
+
+func paramsDefault(f reflect.StructField) string {
+	var tag string
+	qTag := f.Tag.Get(query_tag)
+	if qTag != "" {
+		tag = qTag
+	}
+	pTag := f.Tag.Get(path_tag)
+	if pTag != "" {
+		tag = pTag
+	}
+	parts := strings.Split(tag, ",")
+	if len(parts) > 0 {
+		options := parts[1:]
+		for _, o := range options {
+			o = strings.TrimSpace(o)
+			if strings.HasPrefix(o, "default=") {
+				o = strings.TrimPrefix(o, "default=")
+				return o
+			}
+		}
+	}
+	return ""
 }
 
 func paramTargetTypeAllowMultiple(f reflect.StructField) (reflect.Type, bool) {

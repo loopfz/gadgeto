@@ -15,6 +15,8 @@ func ErrHook(c *gin.Context, e error) (int, interface{}) {
 		switch {
 		case errors.IsBadRequest(e) || errors.IsNotValid(e) || errors.IsAlreadyExists(e) || errors.IsNotSupported(e) || errors.IsNotAssigned(e) || errors.IsNotProvisioned(e):
 			errcode, errpl = 400, e.Error()
+		case errors.IsForbidden(e):
+			errcode, errpl = 403, e.Error()
 		case errors.IsMethodNotAllowed(e):
 			errcode, errpl = 405, e.Error()
 		case errors.IsNotFound(e) || errors.IsUserNotFound(e):

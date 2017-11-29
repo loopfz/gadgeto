@@ -12,12 +12,14 @@ type Parameter struct {
 	Required      bool   `json:"required"`
 	AllowMultiple bool   `json:"-"` // then it's an array
 
-	Type             string `json:"type,omitempty"`             // integer
-	Format           string `json:"format,omitempty"`           // int64
-	CollectionFormat string `json:"collectionFormat,omitempty"` // csv/ssv/tsv/pipe/multi, defaults to csv on swagger spec
-	RefId            string `json:"$ref,omitempty"`
-	Minimum          int    `json:"minimum,omitempty"`
-	Maximum          int    `json:"maximum,omitempty"`
+	Type             string   `json:"type,omitempty"`   // integer
+	Format           string   `json:"format,omitempty"` // int64
+	Enum             []string `json:"enum,omitempty"`
+	CollectionFormat string   `json:"collectionFormat,omitempty"` // csv/ssv/tsv/pipe/multi, defaults to csv on swagger spec
+	RefId            string   `json:"$ref,omitempty"`
+	Minimum          int      `json:"minimum,omitempty"`
+	Maximum          int      `json:"maximum,omitempty"`
+	Default          string   `json:"default,omitempty"`
 
 	Items  map[string]string `json:"items,omitempty"`
 	Schema *Schema           `json:"schema,omitempty"`

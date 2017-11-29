@@ -3,18 +3,23 @@ package tonic
 import (
 	"encoding"
 	"fmt"
+	"io"
+	"net/http"
 	"reflect"
 	"runtime"
 	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
 	"github.com/satori/go.uuid"
 )
 
 const (
-	queryTag = "query"
-	pathTag  = "path"
+	queryTag        = "query"
+	pathTag         = "path"
+	enumTag         = "enum"
+	DefaultMaxBytes = 256 * 1024 // default to max 256ko body
 )
 
 // An ErrorHook lets you interpret errors returned by your handlers.
@@ -80,10 +85,11 @@ func DefaultErrorHook(c *gin.Context, e error) (int, interface{}) {
 // It uses gin to bind body parameters to input object.
 // Returns an error if gin binding fails.
 func DefaultBindingHook(c *gin.Context, i interface{}) error {
-	if c.Request.ContentLength == 0 {
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, DefaultMaxBytes)
+	if c.Request.ContentLength == 0 || c.Request.Method == http.MethodGet {
 		return nil
 	}
-	if err := c.Bind(i); err != nil {
+	if err := c.ShouldBindWith(i, binding.JSON); err != nil && err != io.EOF {
 		return fmt.Errorf("error parsing request body: %s", err.Error())
 	}
 	return nil
@@ -184,7 +190,7 @@ func (ie InputError) Error() string {
 // and the error handling.
 //
 // Handler will panic if the tonic-handler is of incompatible type.
-func Handler(f interface{}, retcode int) gin.HandlerFunc {
+func Handler(f interface{}, retcode int, options ...func(*Route)) gin.HandlerFunc {
 
 	fval := reflect.ValueOf(f)
 	if fval.Kind() != reflect.Func {
@@ -278,11 +284,7 @@ func Handler(f interface{}, retcode int) gin.HandlerFunc {
 		}
 		// Raised error, handle it
 		if errOut != nil {
-			reterr := errOut.(error)
-			// Push error into gin context
-			c.Error(reterr)
-
-			handleError(c, reterr)
+			handleError(c, errOut.(error))
 			return
 		}
 		// Normal output
@@ -290,19 +292,48 @@ func Handler(f interface{}, retcode int) gin.HandlerFunc {
 	}
 
 	// Register route in tonic-enabled routes map
-	routes[fname] = &Route{
+	route := &Route{
 		defaultStatusCode: retcode,
 		handler:           fval,
 		handlerType:       ftype,
 		inputType:         typeIn,
 		outputType:        typeOut,
 	}
+	for _, opt := range options {
+		opt(route)
+	}
+	routes[fname] = route
 
 	return func(c *gin.Context) { execHook(c, retfunc, fname) }
 }
 
+// Description set the description of a route.
+func Description(s string) func(*Route) {
+	return func(r *Route) {
+		r.description = s
+	}
+}
+
+// Description set the summary of a route.
+func Summary(s string) func(*Route) {
+	return func(r *Route) {
+		r.summary = s
+	}
+}
+
+// Deprecated set the deprecated flag of a route.
+func Deprecated(b bool) func(*Route) {
+	return func(r *Route) {
+		r.deprecated = b
+	}
+}
+
 // handleError handles any error raised during the execution of the wrapping gin-handler.
 func handleError(c *gin.Context, err error) {
+	if len(c.Errors) == 0 {
+		// Push error into gin context
+		c.Error(err)
+	}
 	errcode, errpl := errorHook(c, err)
 	renderHook(c, errcode, errpl)
 }
@@ -376,6 +407,15 @@ func bindQueryPath(c *gin.Context, in reflect.Value, targetTag string, extractor
 		} else if len(values) > 1 {
 			return fmt.Errorf("parameter '%s' does not support multiple values", name)
 		} else {
+			enum := fieldType.Tag.Get(enumTag)
+			if enum != "" {
+				enumValues := strings.Split(strings.TrimSpace(enum), ",")
+				if len(enumValues) != 0 {
+					if !sliceContains(enumValues, values[0]) {
+						return fmt.Errorf("parameter '%s' has not an acceptable value, enum=%v", name, enumValues)
+					}
+				}
+			}
 			err = bindValue(values[0], field)
 			if err != nil {
 				return err
@@ -384,6 +424,15 @@ func bindQueryPath(c *gin.Context, in reflect.Value, targetTag string, extractor
 	}
 
 	return nil
+}
+
+func sliceContains(in []string, s string) bool {
+	for _, v := range in {
+		if v == s {
+			return true
+		}
+	}
+	return false
 }
 
 // extractQuery is an extractorFunc that extracts a query parameter.
