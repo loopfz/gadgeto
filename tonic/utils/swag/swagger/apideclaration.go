@@ -5,8 +5,9 @@ import (
 )
 
 type SwaggerApiInfo struct {
-	Title   string `json:"title"`
-	Version string `json:"version"`
+	Title       string `json:"title"`
+	Version     string `json:"version"`
+	Description string `json:"description"`
 }
 
 // ApiDeclaration is https://github.com/swagger-api/swagger-spec/blob/master/versions/1.2.md#52-api-declaration
