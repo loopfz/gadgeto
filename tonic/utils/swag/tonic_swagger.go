@@ -44,3 +44,9 @@ func BasePath(path string) func(*swagger.ApiDeclaration) {
 		a.BasePath = path
 	}
 }
+
+func Description(desc string) func(*swagger.ApiDeclaration) {
+	return func(a *swagger.ApiDeclaration) {
+		a.SwaggerApiInfo.Description = desc
+	}
+}
