@@ -198,7 +198,7 @@ func Handler(f interface{}, retcode int, options ...func(*Route)) gin.HandlerFun
 	}
 
 	ftype := fval.Type()
-	fname := fmt.Sprintf("%s_%s", runtime.FuncForPC(fval.Pointer()).Name(), uuid.NewV4().String())
+	fname := fmt.Sprintf("%s_%s", runtime.FuncForPC(fval.Pointer()).Name(), uuid.Must(uuid.NewV4()).String())
 
 	var typeIn reflect.Type
 	var typeOut reflect.Type
