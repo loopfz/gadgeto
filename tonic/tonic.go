@@ -198,7 +198,11 @@ func Handler(f interface{}, retcode int, options ...func(*Route)) gin.HandlerFun
 	}
 
 	ftype := fval.Type()
-	fname := fmt.Sprintf("%s_%s", runtime.FuncForPC(fval.Pointer()).Name(), uuid.NewV4().String())
+	id, err := uuid.NewV4()
+	if err != nil {
+		panic(fmt.Sprintf("uuid: failed to generate new id: %s", err))
+	}
+	fname := fmt.Sprintf("%s_%s", runtime.FuncForPC(fval.Pointer()).Name(), id.String())
 
 	var typeIn reflect.Type
 	var typeOut reflect.Type
