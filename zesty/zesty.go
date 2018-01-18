@@ -1,15 +1,3 @@
-// zesty is based on gorp, and abstracts DB transaction specifics.
-// You can create a zesty.DB by calling NewDB().
-// You can then register this DB by calling RegisterDB().
-// This lets you instantiate DBProviders for this DB with NewDBProvider(), which is the main
-// object that you manipulate.
-// A DBProvider contains a DB instance, and provides Tx functionalities.
-// You access the DB by calling provider.DB()
-// By calling provider.Tx(), you create a new transaction.
-// Future calls to provider.DB() will provide the Tx instead of the main DB object,
-// allowing caller code to be completely ignorant of transaction context.
-// Transactions can be nested infinitely, and each nesting level can be rolled back independantly.
-// Only the final commit will end the transaction and commit the changes to the DB.
 package zesty
 
 import (
