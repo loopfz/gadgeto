@@ -47,4 +47,6 @@ No server is available to handle this request.
 	}
 
 	fmt.Println("Step 3 returned:", err)
+
+	mock.AssertEmpty(t)
 }

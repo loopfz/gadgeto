@@ -21,6 +21,7 @@ Components:
                 iffy does all the hard work (http, marshaling, templating...) and
                 lets you describe http calls as one-liners, chaining them in complex scenarios.
 
-    - amock: An HTTP mocking library. amock lets you easily write mock objects to inject into http clients.
-                It does not require any go-generate tricks, and lets you inject mocks into existing libraries that
-                may not be properly abstracted through interfaces.
+    - amock: An HTTP mocking library. amock lets you easily write mock objects to inject
+                into http clients.
+                It does not require any go-generate tricks, and lets you inject mocks
+                into existing libraries that may not be properly abstracted through interfaces.
