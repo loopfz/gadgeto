@@ -1,5 +1,4 @@
-/*
-Package tonic lets you write simpler gin handlers.
+tonic lets you write simpler gin handlers.
 The way it works is that it generates wrapping gin-compatible handlers,
 that do all the repetitive work and wrap the call to your simple tonic handler.
 
@@ -116,5 +115,3 @@ You can also easily serve auto-generated (using tonic data) swagger documentatio
         r.GET("/swagger.json", swag.Swagger(r, "MyAPI", swag.Version("v1.0"), swag.BasePath("/foo/bar")))
         r.Run(":8080")
     }
-*/
-package tonic
