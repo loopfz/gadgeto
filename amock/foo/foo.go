@@ -1,6 +1,7 @@
 package foo
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -31,5 +32,33 @@ func GetFoo(ident string) (*Foo, error) {
 	if err != nil {
 		return nil, err
 	}
+	return ret, nil
+}
+
+func (f *Foo) UpdateFoo() (*Foo, error) {
+
+	body, err := json.Marshal(f)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", "http://www.foo.com/foo/"+f.Identifier, bytes.NewReader(body))
+	resp, err := Client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 400 {
+		return nil, fmt.Errorf("got http error %d", resp.StatusCode)
+	}
+	body, err = ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	ret := &Foo{}
+	err = json.Unmarshal(body, ret)
+	if err != nil {
+		return nil, err
+	}
+
 	return ret, nil
 }

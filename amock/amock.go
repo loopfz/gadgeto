@@ -128,8 +128,17 @@ func (mc *MockRoundTripper) Expect(callerFunc interface{}, status int, body inte
 	return resp
 }
 
+// Hack to fix method vs function references
+//
+// var f foo.Foo
+// f.UpdateFoo and (*foo.Foo).UpdateFoo have a different uintptr
+// Their stringified name is suffixed with -... (illegal in identifier names)
+var regexTrimMethodSuffix = regexp.MustCompile(`-[^/\.]+$`)
+
 func getFunctionName(i interface{}) string {
-	return runtime.FuncForPC(reflect.ValueOf(i).Pointer()).Name()
+	name := runtime.FuncForPC(reflect.ValueOf(i).Pointer()).Name()
+	name = regexTrimMethodSuffix.ReplaceAllString(name, "")
+	return name
 }
 
 // RoundTrip respects http.RoundTripper. It finds the code path taken to get to here, and returns the first matching expected response.
@@ -199,12 +208,16 @@ func (mc *MockRoundTripper) AssertEmpty(t *testing.T) {
 
 // Go up the stack to find which expected code path we went through
 func (mc *MockRoundTripper) callerFunc() (string, error) {
-	callers := make([]uintptr, 10)
+	callers := make([]uintptr, 50)
 	runtime.Callers(3, callers)
-	for _, c := range callers {
-		name := runtime.FuncForPC(c).Name()
-		if len(mc.Responses[name]) != 0 {
-			return name, nil
+	frames := runtime.CallersFrames(callers)
+	for {
+		frame, more := frames.Next()
+		if len(mc.Responses[frame.Function]) != 0 {
+			return frame.Function, nil
+		}
+		if !more {
+			break
 		}
 	}
 	return "", fmt.Errorf("unexpected call:\n%s", string(debug.Stack()))

@@ -35,7 +35,22 @@ func TestMock(t *testing.T) {
 
 	fmt.Println("----------------------------------------------------------------------")
 
-	fmt.Println("Step 3: make the mock simulate a 503, get a foo expecting an error")
+	fmt.Println("Step 3: update foo object and call an update _method_")
+
+	f.BarCount = 43
+
+	mock.Expect(f.UpdateFoo, 200, f).OnIdentifier(f.Identifier)
+
+	f, err = f.UpdateFoo()
+	if err != nil {
+		t.Error(err)
+	}
+
+	fmt.Println("Step 3 returned:", f)
+
+	fmt.Println("----------------------------------------------------------------------")
+
+	fmt.Println("Step 4: make the mock simulate a 503, get a foo expecting an error")
 
 	mock.Expect(foo.GetFoo, 503, Raw([]byte(`<html><body><h1>503 Service Unavailable</h1>
 No server is available to handle this request.
@@ -46,7 +61,7 @@ No server is available to handle this request.
 		t.Error(err)
 	}
 
-	fmt.Println("Step 3 returned:", err)
+	fmt.Println("Step 4 returned:", err)
 
 	mock.AssertEmpty(t)
 }
