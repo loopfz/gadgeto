@@ -60,6 +60,10 @@ func NewTester(t *testing.T, r http.Handler, calls ...*Call) *Tester {
 	}
 }
 
+func (t *Tester) Reset() {
+	t.Calls = []*Call{}
+}
+
 func (t *Tester) AddCall(name, method, querystr, body string) *Call {
 	c := &Call{
 		Name:     name,
@@ -202,6 +206,19 @@ func ExpectStatus(st int) Checker {
 			return fmt.Errorf("Bad status code: expected %d, got %d", st, r.StatusCode)
 		}
 		return nil
+	}
+}
+
+func DumpResponse(t *testing.T) Checker {
+	return func(r *http.Response, body string, respObject interface{}) error {
+		t.Log(body)
+		return nil
+	}
+}
+
+func UnmarshalResponse(i interface{}) Checker {
+	return func(r *http.Response, body string, respObject interface{}) error {
+		return json.Unmarshal([]byte(body), i)
 	}
 }
 
