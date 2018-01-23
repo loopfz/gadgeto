@@ -16,6 +16,14 @@ type Foo struct {
 }
 
 func GetFoo(ident string) (*Foo, error) {
+	return doGetFoo(ident)
+}
+
+func GetFoo2(ident string) (*Foo, error) {
+	return doGetFoo(ident)
+}
+
+func doGetFoo(ident string) (*Foo, error) {
 	resp, err := Client.Get("http://www.foo.com/foo/" + ident)
 	if err != nil {
 		return nil, err
