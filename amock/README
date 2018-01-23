@@ -12,6 +12,7 @@ You can specify conditional filters on responses:
     - OnFunc(foo.GetFoo):
         Filter on calls that went through a given go function
 
+
     - OnIdentifier("foo"):
         Shortcut to filter on requests following a path pattern of /.../foo(/...)
         It is a reasonable assumption that REST implementations follow that pattern,
