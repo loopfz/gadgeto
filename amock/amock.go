@@ -118,6 +118,8 @@ func (r *Response) addCond(cond func(*Context) bool) {
 // OnFunc matches calls that went throug a given go function.
 // It accepts a reference to a function as input, and panics otherwise.
 func (r *Response) OnFunc(callerFunc interface{}) *Response {
+	r.Mock.Lock()
+	defer r.Mock.Unlock()
 	caller := getFunctionName(callerFunc)
 	r.Mock.potentialCaller(caller)
 	cond := func(c *Context) bool {
