@@ -344,9 +344,15 @@ func (s *SchemaGenerator) getStructFields(t reflect.Type, ns nameSetter) map[str
 			if typeToUse.Kind() == reflect.Ptr {
 				typeToUse = t.Field(i).Type.Elem()
 			}
-			dbModelFields := s.getStructFields(typeToUse, ns)
-			for fieldName, property := range dbModelFields {
-				structFields[fieldName] = property
+			if typeToUse.Kind() == reflect.Struct {
+				dbModelFields := s.getStructFields(typeToUse, ns)
+				for fieldName, property := range dbModelFields {
+					structFields[fieldName] = property
+				}
+			} else {
+				s.generateSwagModel(t.Field(i).Type, ns)
+				property := s.fieldToModelProperty(t.Field(i))
+				structFields[*name] = property
 			}
 
 		} else {
