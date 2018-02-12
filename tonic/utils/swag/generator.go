@@ -175,17 +175,9 @@ func (s *SchemaGenerator) setOperationParams(op *swagger.Operation, in reflect.T
 		// Embedded field found, extract its fields
 		// as top-level parameters.
 		if in.Field(i).Anonymous {
-			for y := 0; y < in.Field(i).Type.NumField(); y++ {
-				p := s.newParamFromStructField(in.Field(i).Type.Field(y), &body)
-				if p != nil {
-					if doc := s.docInfos.StructFieldsDoc[in.Name()]; doc != nil {
-						if fieldDoc := doc[in.Field(i).Name]; fieldDoc != "" {
-							p.Description = strings.TrimSuffix(fieldDoc, "\n")
-						}
-					}
-					op.AddParameter(*p)
-				}
-			}
+			// Recursively add fields of the embedded field
+			// to the operation params.
+			s.setOperationParams(op, in.Field(i).Type)
 		} else {
 			p := s.newParamFromStructField(in.Field(i), &body)
 			if p != nil {
