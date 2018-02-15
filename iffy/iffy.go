@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -73,10 +72,7 @@ func (t *Tester) AddCall(name, method, querystr, body string) *Call {
 
 func (t *Tester) Run() {
 	for _, c := range t.Calls {
-		var body io.Reader
-		if c.Body != "" {
-			body = bytes.NewBuffer([]byte(t.applyTemplate(c.Body)))
-		}
+		body := bytes.NewBufferString(t.applyTemplate(c.Body))
 		req, err := http.NewRequest(c.Method, t.applyTemplate(c.QueryStr), body)
 		if err != nil {
 			t.t.Error(err)
