@@ -77,11 +77,17 @@ func (t *Tester) AddCall(name, method, querystr, body string) *Call {
 func (t *Tester) Run() {
 	for _, c := range t.Calls {
 		body := bytes.NewBufferString(t.applyTemplate(c.Body))
-		req, err := http.NewRequest(c.Method, t.applyTemplate(c.QueryStr), body)
+		requestURI := t.applyTemplate(c.QueryStr)
+
+		req, err := http.NewRequest(c.Method, requestURI, body)
 		if err != nil {
 			t.t.Error(err)
 			continue
 		}
+
+		// Save unparsed url for http routers whi use it
+		req.RequestURI = requestURI
+
 		if c.Body != "" {
 			req.Header.Set("content-type", "application/json")
 		}
