@@ -21,7 +21,7 @@ Input validation is performed after binding into the object using the validator 
 definition to perform validation inside the tonic handler phase.
 
     type MyInput struct {
-        Foo int    `path:"foo,required" validate:"required,gt=10`
+        Foo int    `path:"foo,required" validate:"required,gt=10"`
         Bar string `query:"bar,default=foobar" validate:"nefield=Baz"`
         Baz string `json:"baz" validate:"required,email"`
     }
