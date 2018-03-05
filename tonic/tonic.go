@@ -13,6 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/satori/go.uuid"
+	validator "gopkg.in/go-playground/validator.v8"
 )
 
 const (
@@ -269,6 +270,12 @@ func Handler(f interface{}, retcode int, options ...func(*Route)) gin.HandlerFun
 				handleError(c, InputError(err.Error()))
 				return
 			}
+			// validating query and path inputs if they have a validate tag
+			validatorObj := validator.New(&validator.Config{TagName: "validate"})
+			if err = validatorObj.Struct(input.Interface()); err != nil {
+				handleError(c, InputError(fmt.Sprintf("invalid input parameters: %s", err.Error())))
+				return
+			}
 			funcIn = append(funcIn, input)
 		}
 
@@ -314,7 +321,7 @@ func Description(s string) func(*Route) {
 	}
 }
 
-// Description set the summary of a route.
+// Summary set the summary of a route.
 func Summary(s string) func(*Route) {
 	return func(r *Route) {
 		r.summary = s
