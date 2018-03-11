@@ -224,7 +224,7 @@ func bind(c *gin.Context, v reflect.Value, tag string, extract extractor) error 
 					field.Index(i).Set(v)
 				}
 			}
-			return nil
+			continue
 		}
 		// Handle enum values.
 		enum := ft.Tag.Get(EnumTag)

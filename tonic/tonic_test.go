@@ -33,6 +33,7 @@ func TestMain(m *testing.M) {
 	g.GET("/error", tonic.Handler(errorHandler, 200))
 	g.GET("/path/:param", tonic.Handler(pathHandler, 200))
 	g.GET("/query", tonic.Handler(queryHandler, 200))
+	g.GET("/query-old", tonic.Handler(queryHandlerOld, 200))
 	g.POST("/body", tonic.Handler(bodyHandler, 200))
 
 	r = g
@@ -70,22 +71,34 @@ func TestPathQuery(t *testing.T) {
 
 	tester.AddCall("path", "GET", "/path/foo", "").Checkers(iffy.ExpectStatus(200), expectString("param", "foo"))
 
-	tester.AddCall("query", "GET", "/query?param=foo", "").Checkers(iffy.ExpectStatus(200), expectString("param", "foo"))
-	tester.AddCall("query", "GET", "/query?param=foo&param=bar", "").Checkers(iffy.ExpectStatus(400))
-	tester.AddCall("query", "GET", "/query?param=", "").Checkers(iffy.ExpectStatus(400))
-	tester.AddCall("query", "GET", "/query", "").Checkers(iffy.ExpectStatus(400))
-	tester.AddCall("query", "GET", "/query?param=foo&param-optional=bar", "").Checkers(iffy.ExpectStatus(200), expectString("param-optional", "bar"))
-	tester.AddCall("query", "GET", "/query?param=foo&param-int=42", "").Checkers(iffy.ExpectStatus(200), expectInt("param-int", 42))
-	tester.AddCall("query", "GET", "/query?param=foo&params=foo&params=bar", "").Checkers(iffy.ExpectStatus(200), expectStringArr("params", "foo", "bar"))
-	tester.AddCall("query", "GET", "/query?param=foo&param-bool=true", "").Checkers(iffy.ExpectStatus(200), expectBool("param-bool", true))
-	tester.AddCall("query", "GET", "/query?param=foo&param-default=bla", "").Checkers(iffy.ExpectStatus(200), expectString("param-default", "bla"))
-	tester.AddCall("query", "GET", "/query?param=foo", "").Checkers(iffy.ExpectStatus(200), expectString("param-default", "default"))
-	tester.AddCall("query", "GET", "/query?param=foo&param-ptr=bar", "").Checkers(iffy.ExpectStatus(200), expectString("param-ptr", "bar"))
-	tester.AddCall("query", "GET", "/query?param=foo&param-embed=bar", "").Checkers(iffy.ExpectStatus(200), expectString("param-embed", "bar"))
+	tester.AddCall("query-normal", "GET", "/query?param=foo", "").Checkers(iffy.ExpectStatus(200), expectString("param", "foo"))
+	tester.AddCall("query-extra-vals", "GET", "/query?param=foo&param=bar", "").Checkers(iffy.ExpectStatus(400))
+	tester.AddCall("query-missing-required1", "GET", "/query?param=", "").Checkers(iffy.ExpectStatus(400))
+	tester.AddCall("query-missing-required2", "GET", "/query", "").Checkers(iffy.ExpectStatus(400))
+	tester.AddCall("query-optional", "GET", "/query?param=foo&param-optional=bar", "").Checkers(iffy.ExpectStatus(200), expectString("param-optional", "bar"))
+	tester.AddCall("query-int", "GET", "/query?param=foo&param-int=42", "").Checkers(iffy.ExpectStatus(200), expectInt("param-int", 42))
+	tester.AddCall("query-multiple", "GET", "/query?param=foo&params=foo&params=bar", "").Checkers(iffy.ExpectStatus(200), expectStringArr("params", "foo", "bar"))
+	tester.AddCall("query-bool", "GET", "/query?param=foo&param-bool=true", "").Checkers(iffy.ExpectStatus(200), expectBool("param-bool", true))
+	tester.AddCall("query-override-default", "GET", "/query?param=foo&param-default=bla", "").Checkers(iffy.ExpectStatus(200), expectString("param-default", "bla"))
+	tester.AddCall("query-ptr", "GET", "/query?param=foo&param-ptr=bar", "").Checkers(iffy.ExpectStatus(200), expectString("param-ptr", "bar"))
+	tester.AddCall("query-embed", "GET", "/query?param=foo&param-embed=bar", "").Checkers(iffy.ExpectStatus(200), expectString("param-embed", "bar"))
 
 	now, _ := time.Time{}.Add(87 * time.Hour).MarshalText()
 
-	tester.AddCall("query", "GET", fmt.Sprintf("/query?param=foo&param-complex=%s", now), "").Checkers(iffy.ExpectStatus(200), expectString("param-complex", string(now)))
+	tester.AddCall("query-complex", "GET", fmt.Sprintf("/query?param=foo&param-complex=%s", now), "").Checkers(iffy.ExpectStatus(200), expectString("param-complex", string(now)))
+
+	tester.Run()
+}
+
+func TestPathQueryBackwardsCompatible(t *testing.T) {
+
+	tester := iffy.NewTester(t, r)
+
+	tester.AddCall("query-old-missing-required1", "GET", "/query-old", "").Checkers(iffy.ExpectStatus(400))
+	tester.AddCall("query-old-missing-required2", "GET", "/query-old?param=", "").Checkers(iffy.ExpectStatus(400))
+	tester.AddCall("query-old-normal", "GET", "/query-old?param=foo", "").Checkers(iffy.ExpectStatus(200), expectString("param", "foo"))
+	tester.AddCall("query-old-override-default", "GET", "/query-old?param=foo&param-default=bla", "").Checkers(iffy.ExpectStatus(200), expectString("param-default", "bla"))
+	tester.AddCall("query-old-use-default", "GET", "/query-old?param=foo", "").Checkers(iffy.ExpectStatus(200), expectString("param-default", "default"))
 
 	tester.Run()
 }
@@ -135,10 +148,16 @@ type queryIn struct {
 	Params        []string  `query:"params" json:"params"`
 	ParamInt      int       `query:"param-int" json:"param-int"`
 	ParamBool     bool      `query:"param-bool" json:"param-bool"`
-	ParamDefault  string    `query:"param-default" json:"param-default" default:"default"`
+	ParamDefault  string    `query:"param-default" json:"param-default" default:"default" validate:"required"`
 	ParamPtr      *string   `query:"param-ptr" json:"param-ptr"`
 	ParamComplex  time.Time `query:"param-complex" json:"param-complex"`
 	*DoubleEmbedded
+}
+
+// XXX: deprecated, but ensure backwards compatibility
+type queryInOld struct {
+	ParamRequired string `query:"param, required" json:"param"`
+	ParamDefault  string `query:"param-default,required,default=default" json:"param-default"`
 }
 
 type Embedded struct {
@@ -150,6 +169,10 @@ type DoubleEmbedded struct {
 }
 
 func queryHandler(c *gin.Context, in *queryIn) (*queryIn, error) {
+	return in, nil
+}
+
+func queryHandlerOld(c *gin.Context, in *queryInOld) (*queryInOld, error) {
 	return in, nil
 }
 
@@ -224,7 +247,7 @@ func expectStringArr(paramName string, value ...string) func(*http.Response, str
 
 		err := json.Unmarshal([]byte(body), &i)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to unmarshal json: %s", body)
 		}
 		s, ok := i[paramName]
 		if !ok {

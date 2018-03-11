@@ -214,46 +214,108 @@ type extractor func(*gin.Context, string) (string, []string, error)
 // extractQuery is an extractor tgat operated on the query
 // parameters of a request.
 func extractQuery(c *gin.Context, tag string) (string, []string, error) {
-	name, err := ParseTagKey(tag)
+	name, required, defaultVal, err := parseTagKey(tag)
 	if err != nil {
 		return "", nil, err
 	}
-	q := c.Request.URL.Query()[name]
+
+	rawQ := c.Request.URL.Query()[name]
+
+	// delete empty elements so default+required will play nice together
+	// append to a new collection to preserve order without too much copying
+	q := make([]string, 0, len(rawQ))
+	for i := range rawQ {
+		if rawQ[i] != "" {
+			q = append(q, rawQ[i])
+		}
+	}
+
+	// XXX: deprecated, use of "default" tag is preferred
+	if len(q) == 0 && defaultVal != "" {
+		return name, []string{defaultVal}, nil
+	}
+	// XXX: deprecated, use of "validate" tag is preferred
+	if len(q) == 0 && required {
+		return "", nil, fmt.Errorf("missing query parameter: %s", name)
+	}
 	return name, q, nil
 }
 
 // extractPath is an extractor that operates on the path
 // parameters of a request.
 func extractPath(c *gin.Context, tag string) (string, []string, error) {
-	name, err := ParseTagKey(tag)
+	name, required, defaultVal, err := parseTagKey(tag)
 	if err != nil {
 		return "", nil, err
 	}
 	p := c.Param(name)
+
+	// XXX: deprecated, use of "default" tag is preferred
+	if p == "" && defaultVal != "" {
+		return name, []string{defaultVal}, nil
+	}
+	// XXX: deprecated, use of "validate" tag is preferred
+	if p == "" && required {
+		return "", nil, fmt.Errorf("missing path parameter: %s", name)
+	}
+
 	return name, []string{p}, nil
 }
 
 // extractHeader is an extractor that operates on the headers
 // of a request.
 func extractHeader(c *gin.Context, tag string) (string, []string, error) {
-	name, err := ParseTagKey(tag)
+	name, required, defaultVal, err := parseTagKey(tag)
 	if err != nil {
 		return "", nil, err
 	}
 	header := c.GetHeader(name)
+
+	// XXX: deprecated, use of "default" tag is preferred
+	if header == "" && defaultVal != "" {
+		return name, []string{defaultVal}, nil
+	}
+	// XXX: deprecated, use of "validate" tag is preferred
+	if required && header == "" {
+		return "", nil, fmt.Errorf("missing header parameter: %s", name)
+	}
 	return name, []string{header}, nil
 }
 
-// ParseTagKey parses the given struct tag key and
-// return the name of the field
-func ParseTagKey(tag string) (string, error) {
+// Public signature does not expose "required" and "default" because
+// they are deprecated in favor of the "validate" and "default" tags
+func parseTagKey(tag string) (string, bool, string, error) {
 	parts := strings.Split(tag, ",")
 	if len(parts) == 0 {
-		return "", fmt.Errorf("empty tag")
+		return "", false, "", fmt.Errorf("empty tag")
 	}
-	name, _ := parts[0], parts[1:]
+	name, options := parts[0], parts[1:]
 
-	return name, nil
+	var defaultVal string
+
+	// XXX: deprecated, required + default are kept here for backwards compatibility
+	// use of "default" and "validate" tags is preferred
+	// Iterate through the tag options to
+	// find the required key.
+	var required bool
+	for _, o := range options {
+		o = strings.TrimSpace(o)
+		if o == requiredTag {
+			required = true
+		} else if strings.HasPrefix(o, "default=") {
+			defaultVal = strings.TrimPrefix(o, "default=")
+		} else {
+			return "", false, "", fmt.Errorf("malformed tag for param '%s': unknown option '%s'", name, o)
+		}
+	}
+	return name, required, defaultVal, nil
+}
+
+// ParseTagKey parses the given struct tag key and return the
+// name of the field
+func ParseTagKey(tag string) (string, error) {
+	s, _, _, err := parseTagKey(tag)
+	return s, err
 }
 
 // bindStringValue converts and bind the value s
