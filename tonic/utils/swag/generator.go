@@ -68,8 +68,8 @@ func (s *SchemaGenerator) GenerateSwagDeclaration(routes map[string]*tonic.Route
 
 func (s *SchemaGenerator) generateModels(routes map[string]*tonic.Route) error {
 	for _, route := range routes {
-		s.generateSwagModel(route.GetInType(), nil)
-		s.generateSwagModel(route.GetOutType(), nil)
+		s.generateSwagModel(route.InputType(), nil)
+		s.generateSwagModel(route.OutputType(), nil)
 	}
 
 	return nil
@@ -93,17 +93,17 @@ func (s *SchemaGenerator) addOperation(route *tonic.Route) error {
 
 func (s *SchemaGenerator) generateOperation(route *tonic.Route) (*swagger.Operation, error) {
 
-	in := route.GetInType()
-	out := route.GetOutType()
+	in := route.InputType()
+	out := route.OutputType()
 
-	desc := s.docInfos.FunctionsDoc[route.GetHandlerNameWithPackage()]
+	desc := s.docInfos.FunctionsDoc[route.HandlerNameWithPackage()]
 	if desc == "" {
 		desc = route.GetDescription()
 	}
 
 	op := swagger.NewOperation(
 		route.GetVerb(),
-		route.GetHandlerName(),
+		route.HandlerName(),
 		route.GetSummary(),
 		s.generateSwagModel(out, nil),
 		desc,

@@ -9,12 +9,30 @@ of various parameters.
 Here is an example input object.
 
     type MyInput struct {
-        Foo int    `path:"foo,required"`
-        Bar float  `query:"bar,default=foobar"`
-        Baz string `json:"baz" binding:"required"`
+        Foo int    `path:"foo"`
+        Bar string `query:"bar" default="foobar"`
+        Baz string `json:"baz"`
     }
 
 Output objects can be of any type, and will be marshaled to JSON.
+
+Input validation is performed after binding into the object using the validator library
+(https://github.com/go-playground/validator). You can use the tag 'validate' on your object
+definition to perform validation inside the tonic handler phase.
+
+    type MyInput struct {
+        Foo int    `path:"foo" validate:"required,gt=10"`
+        Bar string `query:"bar" default="foobar" validate:"nefield=Baz"`
+        Baz string `json:"baz" validate:"required,email"`
+    }
+
+enum input validation is also implemented natively by tonic, and can check that the provided input
+value corresponds to one of the expected enum values.
+
+    type MyInput struct {
+        Bar string `query:"bar" enum:"foo,buz,biz"`
+    }
+
 
 The handler can return an error, which will be returned to the caller.
 
@@ -29,7 +47,7 @@ Here is a basic application that greets a user on http://localhost:8080/hello/me
     )
 
     type GreetUserInput struct {
-        Name string `path:"name,required" description:"User name"`
+        Name string `path:"name" validate:"required,gt=3" description:"User name"`
     }
 
     type GreetUserOutput struct {
@@ -74,7 +92,7 @@ Example of the same application as before, using juju errors:
     )
 
     type GreetUserInput struct {
-        Name string `path:"name,required" description:"User name"`
+        Name string `path:"name" description:"User name" validate="required"`
     }
 
     type GreetUserOutput struct {

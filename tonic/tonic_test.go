@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -16,8 +17,7 @@ import (
 var r http.Handler
 
 func errorHook(c *gin.Context, e error) (int, interface{}) {
-
-	if _, ok := e.(tonic.InputError); ok {
+	if _, ok := e.(tonic.BindError); ok {
 		return 400, e.Error()
 	}
 	return 500, e.Error()
@@ -72,7 +72,7 @@ func TestPathQuery(t *testing.T) {
 
 	tester.AddCall("query", "GET", "/query?param=foo", "").Checkers(iffy.ExpectStatus(200), expectString("param", "foo"))
 	tester.AddCall("query", "GET", "/query?param=foo&param=bar", "").Checkers(iffy.ExpectStatus(400))
-	tester.AddCall("query", "GET", "/query?param=", "").Checkers(iffy.ExpectStatus(200))
+	tester.AddCall("query", "GET", "/query?param=", "").Checkers(iffy.ExpectStatus(400))
 	tester.AddCall("query", "GET", "/query", "").Checkers(iffy.ExpectStatus(400))
 	tester.AddCall("query", "GET", "/query?param=foo&param-optional=bar", "").Checkers(iffy.ExpectStatus(200), expectString("param-optional", "bar"))
 	tester.AddCall("query", "GET", "/query?param=foo&param-int=42", "").Checkers(iffy.ExpectStatus(200), expectInt("param-int", 42))
@@ -98,6 +98,13 @@ func TestBody(t *testing.T) {
 	tester.AddCall("body", "POST", "/body", `{}`).Checkers(iffy.ExpectStatus(400))
 	tester.AddCall("body", "POST", "/body", `{"param": ""}`).Checkers(iffy.ExpectStatus(400))
 	tester.AddCall("body", "POST", "/body", `{"param": "foo", "param-optional": "bar"}`).Checkers(iffy.ExpectStatus(200), expectString("param-optional", "bar"))
+	tester.AddCall("body1", "POST", "/body", `{"param": "foo"}`).Checkers(iffy.ExpectStatus(200), expectString("param", "foo"))
+	tester.AddCall("body2", "POST", "/body", `{}`).Checkers(iffy.ExpectStatus(400))
+	tester.AddCall("body3", "POST", "/body", `{"param": ""}`).Checkers(iffy.ExpectStatus(400))
+	tester.AddCall("body4", "POST", "/body", `{"param": "foo", "param-optional": "bar"}`).Checkers(iffy.ExpectStatus(200), expectString("param-optional", "bar"))
+	tester.AddCall("body5", "POST", "/body", `{"param": "foo", "param-optional-validated": "ttttt"}`).Checkers(iffy.ExpectStatus(400), expectStringInBody("failed on the 'eq|eq|gt' tag"))
+	tester.AddCall("body6", "POST", "/body", `{"param": "foo", "param-optional-validated": "foo"}`).Checkers(iffy.ExpectStatus(200), expectString("param-optional-validated", "foo"))
+	tester.AddCall("body7", "POST", "/body", `{"param": "foo", "param-optional-validated": "foobarfoobuz"}`).Checkers(iffy.ExpectStatus(200), expectString("param-optional-validated", "foobarfoobuz"))
 
 	tester.Run()
 }
@@ -123,12 +130,12 @@ func pathHandler(c *gin.Context, in *pathIn) (*pathIn, error) {
 }
 
 type queryIn struct {
-	Param         string    `query:"param, required" json:"param"`
+	Param         string    `query:"param" json:"param" validate:"required"`
 	ParamOptional string    `query:"param-optional" json:"param-optional"`
 	Params        []string  `query:"params" json:"params"`
 	ParamInt      int       `query:"param-int" json:"param-int"`
 	ParamBool     bool      `query:"param-bool" json:"param-bool"`
-	ParamDefault  string    `query:"param-default, default=default" json:"param-default"`
+	ParamDefault  string    `query:"param-default" json:"param-default" default:"default"`
 	ParamPtr      *string   `query:"param-ptr" json:"param-ptr"`
 	ParamComplex  time.Time `query:"param-complex" json:"param-complex"`
 	*DoubleEmbedded
@@ -147,8 +154,9 @@ func queryHandler(c *gin.Context, in *queryIn) (*queryIn, error) {
 }
 
 type bodyIn struct {
-	Param         string `json:"param" binding:"required"`
-	ParamOptional string `json:"param-optional"`
+	Param                  string `json:"param" validate:"required"`
+	ParamOptional          string `json:"param-optional"`
+	ValidatedParamOptional string `json:"param-optional-validated" validate:"eq=|eq=foo|gt=10"`
 }
 
 func bodyHandler(c *gin.Context, in *bodyIn) (*bodyIn, error) {
@@ -233,6 +241,16 @@ func expectStringArr(paramName string, value ...string) func(*http.Response, str
 			if sArr[n] != value[n] {
 				return fmt.Errorf("%s: %s does not match", paramName, sArr[n])
 			}
+		}
+		return nil
+	}
+}
+
+func expectStringInBody(value string) func(*http.Response, string, interface{}) error {
+
+	return func(r *http.Response, body string, obj interface{}) error {
+		if !strings.Contains(body, value) {
+			return fmt.Errorf("body doesn't contains '%s'", value)
 		}
 		return nil
 	}

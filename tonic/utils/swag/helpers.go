@@ -6,12 +6,19 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/loopfz/gadgeto/tonic"
 	"github.com/loopfz/gadgeto/tonic/utils/swag/swagger"
 )
 
 const (
-	query_tag = "query"
-	path_tag  = "path"
+	queryTag         = tonic.TagQuery
+	pathTag          = tonic.TagPath
+	validateTag      = tonic.TagValidation
+	defaultTag       = "default"
+	jsonTag          = "json"
+	descriptionTag   = "description"
+	swaggerTypeTag   = "swagger-type"
+	requiredProperty = "required"
 )
 
 func getFieldName(field reflect.StructField) *string {
@@ -27,15 +34,15 @@ func getFieldName(field reflect.StructField) *string {
 
 func paramName(f reflect.StructField) string {
 	var tag string
-	qTag := f.Tag.Get(query_tag)
+	qTag := f.Tag.Get(queryTag)
 	if qTag != "" {
 		tag = qTag
 	}
-	pTag := f.Tag.Get(path_tag)
+	pTag := f.Tag.Get(pathTag)
 	if pTag != "" {
 		tag = pTag
 	}
-	jTag := f.Tag.Get("json")
+	jTag := f.Tag.Get(jsonTag)
 	if jTag != "" {
 		tag = jTag
 	}
@@ -51,45 +58,48 @@ func paramName(f reflect.StructField) string {
 }
 
 func paramDescription(f reflect.StructField) string {
-	return f.Tag.Get("description")
+	return f.Tag.Get(descriptionTag)
 }
 
 func paramRequired(f reflect.StructField) bool {
 	var tag string
-	qTag := f.Tag.Get(query_tag)
+	qTag := f.Tag.Get(queryTag)
 	if qTag != "" {
 		tag = qTag
 	}
-	pTag := f.Tag.Get(path_tag)
+	pTag := f.Tag.Get(pathTag)
 	if pTag != "" {
 		tag = pTag
 	}
-	bTag := f.Tag.Get("binding")
-	if bTag != "" {
-		tag = bTag
+	vTag := f.Tag.Get(validateTag)
+	if vTag != "" {
+		tag = vTag
 	}
-	return strings.Index(tag, "required") != -1
+	return strings.Index(tag, requiredProperty) != -1
 }
 
 func paramType(f reflect.StructField) string {
-	qTag := f.Tag.Get(query_tag)
+	qTag := f.Tag.Get(queryTag)
 	if qTag != "" {
-		return query_tag
+		return queryTag
 	}
-	pTag := f.Tag.Get(path_tag)
+	pTag := f.Tag.Get(pathTag)
 	if pTag != "" {
-		return path_tag
+		return pathTag
 	}
 	return "body"
 }
 
 func paramsDefault(f reflect.StructField) string {
 	var tag string
-	qTag := f.Tag.Get(query_tag)
+	if dTag, ok := f.Tag.Lookup(defaultTag); ok {
+		return dTag
+	}
+	qTag := f.Tag.Get(queryTag)
 	if qTag != "" {
 		tag = qTag
 	}
-	pTag := f.Tag.Get(path_tag)
+	pTag := f.Tag.Get(pathTag)
 	if pTag != "" {
 		tag = pTag
 	}
@@ -119,10 +129,10 @@ func paramTargetTypeAllowMultiple(f reflect.StructField) (reflect.Type, bool) {
 
 func paramFormatDataTypeRefId(f reflect.StructField) (string, string, string) {
 	var format, dataType, refId string
-	if f.Tag.Get("swagger-type") != "" {
+	if f.Tag.Get(swaggerTypeTag) != "" {
 		//Swagger type defined on the original struct, no need to infer it
 		//format is: swagger-type:type[,format]
-		tagValue := f.Tag.Get("swagger-type")
+		tagValue := f.Tag.Get(swaggerTypeTag)
 		tagTypes := strings.Split(tagValue, ",")
 		switch len(tagTypes) {
 		case 1:
@@ -131,7 +141,7 @@ func paramFormatDataTypeRefId(f reflect.StructField) (string, string, string) {
 			dataType = tagTypes[0]
 			format = tagTypes[1]
 		default:
-			panic(fmt.Sprintf("Error: bad swagger-type definition on %s (%s)", f.Name, tagValue))
+			panic(fmt.Sprintf("Error: bad %s definition on %s (%s)", swaggerTypeTag, f.Name, tagValue))
 		}
 	} else {
 		targetType, _ := paramTargetTypeAllowMultiple(f)
