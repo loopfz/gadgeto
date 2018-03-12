@@ -232,7 +232,7 @@ func (s *SchemaGenerator) newParamFromStructField(f reflect.StructField, bodyMod
 		refId,
 	)
 
-	if tag := f.Tag.Get("enum"); tag != "" {
+	if tag := f.Tag.Get(enumTag); tag != "" {
 		p.Enum = strings.Split(tag, ",")
 	}
 	p.Default = paramsDefault(f)
@@ -386,14 +386,13 @@ func (s *SchemaGenerator) fieldToModelProperty(f reflect.StructField) *swagger.M
 		}
 	}
 
-	if f.Tag.Get("description") != "" {
-		p.Description = f.Tag.Get("description")
+	if description := paramDescription(f); description != "" {
+		p.Description = description
 	}
 
-	if f.Tag.Get("swagger-type") != "" {
+	if tagValue := f.Tag.Get(swaggerTypeTag); tagValue != "" {
 		//Swagger type defined on the original struct, no need to infer it
 		//format is: swagger-type:type[,format]
-		tagValue := f.Tag.Get("swagger-type")
 		tagTypes := strings.Split(tagValue, ",")
 		switch len(tagTypes) {
 		case 1:
@@ -402,7 +401,7 @@ func (s *SchemaGenerator) fieldToModelProperty(f reflect.StructField) *swagger.M
 			p.Type = tagTypes[0]
 			p.Format = tagTypes[1]
 		default:
-			panic(fmt.Sprintf("Error: bad swagger-type definition on %s (%s)", f.Name, tagValue))
+			panic(fmt.Sprintf("Error: bad %s definition on %s (%s)", swaggerTypeTag, f.Name, tagValue))
 		}
 	} else {
 

@@ -19,13 +19,13 @@ const MaxBodyBytes = 256 * 1024
 
 // Fields tags used by tonic.
 const (
-	TagQuery      = "query"
-	TagPath       = "path"
-	TagHeader     = "header"
+	QueryTag      = "query"
+	PathTag       = "path"
+	HeaderTag     = "header"
 	EnumTag       = "enum"
-	requiredTag   = "required"
+	RequiredTag   = "required"
 	DefaultTag    = "default"
-	TagValidation = "validate"
+	ValidationTag = "validate"
 )
 
 const (
@@ -300,10 +300,10 @@ func parseTagKey(tag string) (string, bool, string, error) {
 	var required bool
 	for _, o := range options {
 		o = strings.TrimSpace(o)
-		if o == requiredTag {
+		if o == RequiredTag {
 			required = true
-		} else if strings.HasPrefix(o, "default=") {
-			defaultVal = strings.TrimPrefix(o, "default=")
+		} else if strings.HasPrefix(o, fmt.Sprintf("%s=", DefaultTag)) {
+			defaultVal = strings.TrimPrefix(o, fmt.Sprintf("%s=", DefaultTag))
 		} else {
 			return "", false, "", fmt.Errorf("malformed tag for param '%s': unknown option '%s'", name, o)
 		}

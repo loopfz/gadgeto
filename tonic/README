@@ -10,7 +10,7 @@ Here is an example input object.
 
     type MyInput struct {
         Foo int    `path:"foo"`
-        Bar string `query:"bar" default="foobar"`
+        Bar string `query:"bar" default:"foobar"`
         Baz string `json:"baz"`
     }
 
@@ -22,7 +22,7 @@ definition to perform validation inside the tonic handler phase.
 
     type MyInput struct {
         Foo int    `path:"foo" validate:"required,gt=10"`
-        Bar string `query:"bar" default="foobar" validate:"nefield=Baz"`
+        Bar string `query:"bar" default:"foobar" validate:"nefield=Baz"`
         Baz string `json:"baz" validate:"required,email"`
     }
 

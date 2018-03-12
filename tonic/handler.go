@@ -71,22 +71,22 @@ func Handler(h interface{}, status int, options ...func(*Route)) gin.HandlerFunc
 				return
 			}
 			// Bind query-parameters.
-			if err := bind(c, input, TagQuery, extractQuery); err != nil {
+			if err := bind(c, input, QueryTag, extractQuery); err != nil {
 				handleError(c, err)
 				return
 			}
 			// Bind path arguments.
-			if err := bind(c, input, TagPath, extractPath); err != nil {
+			if err := bind(c, input, PathTag, extractPath); err != nil {
 				handleError(c, err)
 				return
 			}
 			// Bind headers.
-			if err := bind(c, input, TagHeader, extractHeader); err != nil {
+			if err := bind(c, input, HeaderTag, extractHeader); err != nil {
 				handleError(c, err)
 				return
 			}
 			// validating query and path inputs if they have a validate tag
-			validatorObj := validator.New(&validator.Config{TagName: TagValidation})
+			validatorObj := validator.New(&validator.Config{TagName: ValidationTag})
 			args = append(args, input)
 			if err := validatorObj.Struct(input.Interface()); err != nil {
 				handleError(c, BindError{message: err.Error()})
@@ -233,7 +233,7 @@ func bind(c *gin.Context, v reflect.Value, tag string, extract extractor) error 
 			if len(enumValues) != 0 {
 				if !contains(enumValues, fieldValues[0]) {
 					return BindError{field: ft.Name, typ: t, message: fmt.Sprintf(
-						"parameter has not an acceptable value, enum=%v", enumValues),
+						"parameter has not an acceptable value, %s=%v", EnumTag, enumValues),
 					}
 				}
 			}

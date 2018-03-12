@@ -11,14 +11,15 @@ import (
 )
 
 const (
-	queryTag         = tonic.TagQuery
-	pathTag          = tonic.TagPath
-	validateTag      = tonic.TagValidation
-	defaultTag       = "default"
-	jsonTag          = "json"
-	descriptionTag   = "description"
-	swaggerTypeTag   = "swagger-type"
-	requiredProperty = "required"
+	queryTag       = tonic.QueryTag
+	pathTag        = tonic.PathTag
+	validateTag    = tonic.ValidationTag
+	defaultTag     = tonic.DefaultTag
+	enumTag        = tonic.EnumTag
+	jsonTag        = "json"
+	descriptionTag = "description"
+	swaggerTypeTag = "swagger-type"
+	requiredTag    = tonic.RequiredTag
 )
 
 func getFieldName(field reflect.StructField) *string {
@@ -75,7 +76,7 @@ func paramRequired(f reflect.StructField) bool {
 	if vTag != "" {
 		tag = vTag
 	}
-	return strings.Index(tag, requiredProperty) != -1
+	return strings.Index(tag, requiredTag) != -1
 }
 
 func paramType(f reflect.StructField) string {
@@ -108,8 +109,8 @@ func paramsDefault(f reflect.StructField) string {
 		options := parts[1:]
 		for _, o := range options {
 			o = strings.TrimSpace(o)
-			if strings.HasPrefix(o, "default=") {
-				o = strings.TrimPrefix(o, "default=")
+			if strings.HasPrefix(o, fmt.Sprintf("%s=", defaultTag)) {
+				o = strings.TrimPrefix(o, fmt.Sprintf("%s=", defaultTag))
 				return o
 			}
 		}
