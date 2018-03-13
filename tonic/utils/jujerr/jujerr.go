@@ -9,7 +9,7 @@ import (
 func ErrHook(c *gin.Context, e error) (int, interface{}) {
 
 	errcode, errpl := 500, e.Error()
-	if _, ok := e.(tonic.InputError); ok {
+	if _, ok := e.(tonic.BindError); ok {
 		errcode, errpl = 400, e.Error()
 	} else {
 		switch {
