@@ -104,12 +104,16 @@ func (r *Route) GetTags() []string {
 // the given wrapped handler.
 func GetRouteByHandler(h gin.HandlerFunc) (*Route, error) {
 	ctx := &gin.Context{}
-	ret := &Route{}
+	ctx.Set(tonicWantRouteInfos, nil)
 
-	ctx.Set(handlerInfosRequest, ret)
+	funcsMu.Lock()
+	defer funcsMu.Unlock()
+	if _, ok := funcs[runtime.FuncForPC(reflect.ValueOf(h).Pointer()).Name()]; !ok {
+		return nil, errors.New("handler is not wrapped by tonic")
+	}
 	h(ctx)
 
-	i, ok := ctx.Get(handlerInfosRequest)
+	i, ok := ctx.Get(tonicRoutesInfos)
 	if !ok {
 		return nil, errors.New("failed to retrieve handler infos")
 	}
