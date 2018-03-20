@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -30,7 +31,8 @@ const (
 
 const (
 	defaultMediaType    = "application/json"
-	handlerInfosRequest = "handlerInfosRequest"
+	tonicRoutesInfos    = "_tonic_route_infos"
+	tonicWantRouteInfos = "_tonic_want_route_infos"
 )
 
 var (
@@ -41,7 +43,9 @@ var (
 
 	mediaType = defaultMediaType
 
-	routes = make(map[string]*Route)
+	routes  = make(map[string]*Route)
+	funcs   = make(map[string]struct{})
+	funcsMu = sync.Mutex{}
 )
 
 // BindHook is the hook called by the wrapping gin-handler when

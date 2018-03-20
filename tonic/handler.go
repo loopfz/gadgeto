@@ -41,20 +41,19 @@ func Handler(h interface{}, status int, options ...func(*Route)) gin.HandlerFunc
 
 	// Wrap Gin handler.
 	f := func(c *gin.Context) {
-		r, ok := c.Get(handlerInfosRequest)
+		_, ok := c.Get(tonicWantRouteInfos)
 		if ok {
-			i, ok := r.(*Route)
-			if !ok {
-				return
-			}
-			i.defaultStatusCode = status
-			i.handler = hv
-			i.handlerType = ht
-			i.inputType = in
-			i.outputType = out
+			r := &Route{}
+			r.defaultStatusCode = status
+			r.handler = hv
+			r.handlerType = ht
+			r.inputType = in
+			r.outputType = out
 			for _, opt := range options {
-				opt(i)
+				opt(r)
 			}
+			c.Set(tonicRoutesInfos, r)
+			c.Abort()
 			return
 		}
 		// funcIn contains the input parameters of the
@@ -125,7 +124,13 @@ func Handler(h interface{}, status int, options ...func(*Route)) gin.HandlerFunc
 	}
 	routes[fname] = route
 
-	return func(c *gin.Context) { execHook(c, f, fname) }
+	ret := func(c *gin.Context) { execHook(c, f, fname) }
+
+	funcsMu.Lock()
+	defer funcsMu.Unlock()
+	funcs[runtime.FuncForPC(reflect.ValueOf(ret).Pointer()).Name()] = struct{}{}
+
+	return ret
 }
 
 // bind binds the fields the fields of the input object in with
