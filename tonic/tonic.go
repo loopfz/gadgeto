@@ -123,6 +123,11 @@ func MediaType() string {
 	return defaultMediaType
 }
 
+// GetErrorHook returns the current error hook.
+func GetErrorHook() ErrorHook {
+	return errorHook
+}
+
 // SetErrorHook sets the given hook as the
 // default error handling hook.
 func SetErrorHook(eh ErrorHook) {
@@ -131,12 +136,22 @@ func SetErrorHook(eh ErrorHook) {
 	}
 }
 
+// GetBindHook returns the current bind hook.
+func GetBindHook() BindHook {
+	return bindHook
+}
+
 // SetBindHook sets the given hook as the
 // default binding hook.
 func SetBindHook(bh BindHook) {
 	if bh != nil {
 		bindHook = bh
 	}
+}
+
+// GetRenderHook returns the current render hook.
+func GetRenderHook() RenderHook {
+	return renderHook
 }
 
 // SetRenderHook sets the given hook as the default
