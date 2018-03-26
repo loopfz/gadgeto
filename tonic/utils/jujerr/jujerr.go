@@ -13,7 +13,7 @@ func ErrHook(c *gin.Context, e error) (int, interface{}) {
 		errcode, errpl = 400, e.Error()
 	} else {
 		switch {
-		case errors.IsBadRequest(e) || errors.IsNotValid(e) || errors.IsAlreadyExists(e) || errors.IsNotSupported(e) || errors.IsNotAssigned(e) || errors.IsNotProvisioned(e):
+		case errors.IsBadRequest(e) || errors.IsNotValid(e) || errors.IsNotSupported(e) || errors.IsNotAssigned(e) || errors.IsNotProvisioned(e):
 			errcode, errpl = 400, e.Error()
 		case errors.IsForbidden(e):
 			errcode, errpl = 403, e.Error()
@@ -23,6 +23,8 @@ func ErrHook(c *gin.Context, e error) (int, interface{}) {
 			errcode, errpl = 404, e.Error()
 		case errors.IsUnauthorized(e):
 			errcode, errpl = 401, e.Error()
+		case errors.IsAlreadyExists(e):
+			errcode, errpl = 409, e.Error()
 		case errors.IsNotImplemented(e):
 			errcode, errpl = 501, e.Error()
 		}
