@@ -5,10 +5,16 @@ import (
 	"reflect"
 	"runtime"
 	"strings"
+	"sync"
 
 	"github.com/gin-gonic/gin"
 	uuid "github.com/satori/go.uuid"
 	validator "gopkg.in/go-playground/validator.v8"
+)
+
+var (
+	validatorObj  *validator.Validate
+	validatorOnce sync.Once
 )
 
 // Handler returns a Gin HandlerFunc that wraps the handler passed
@@ -85,7 +91,7 @@ func Handler(h interface{}, status int, options ...func(*Route)) gin.HandlerFunc
 				return
 			}
 			// validating query and path inputs if they have a validate tag
-			validatorObj := validator.New(&validator.Config{TagName: ValidationTag})
+			initValidator()
 			args = append(args, input)
 			if err := validatorObj.Struct(input.Interface()); err != nil {
 				handleError(c, BindError{message: err.Error()})
@@ -131,6 +137,19 @@ func Handler(h interface{}, status int, options ...func(*Route)) gin.HandlerFunc
 	funcs[runtime.FuncForPC(reflect.ValueOf(ret).Pointer()).Name()] = struct{}{}
 
 	return ret
+}
+
+// RegisterValidation registers a custom validation on the validator.Validate instance of the package
+// note that calling this function may instantiate the validator itself.
+func RegisterValidation(tagName string, validationFunc validator.Func) error {
+	initValidator()
+	return validatorObj.RegisterValidation(tagName, validationFunc)
+}
+
+func initValidator() {
+	validatorOnce.Do(func() {
+		validatorObj = validator.New(&validator.Config{TagName: ValidationTag})
+	})
 }
 
 // bind binds the fields the fields of the input object in with
