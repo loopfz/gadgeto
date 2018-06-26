@@ -140,7 +140,8 @@ func Handler(h interface{}, status int, options ...func(*Route)) gin.HandlerFunc
 }
 
 // RegisterValidation registers a custom validation on the validator.Validate instance of the package
-// note that calling this function may instantiate the validator itself.
+// NOTE: calling this function may instantiate the validator itself.
+// NOTE: this function is not thread safe, since the validator validation registration isn't
 func RegisterValidation(tagName string, validationFunc validator.Func) error {
 	initValidator()
 	return validatorObj.RegisterValidation(tagName, validationFunc)
