@@ -32,23 +32,35 @@ func ListenAndServe(handler http.Handler, errorHandler func(error), opt ...Liste
 		o(listenOpt)
 	}
 
+	stop := make(chan struct{})
+
 	go func() {
 		err := srv.ListenAndServe()
 		if err != nil && err != http.ErrServerClosed && errorHandler != nil {
 			errorHandler(err)
 		}
+		close(stop)
 	}()
 
-	quit := make(chan os.Signal)
-	signal.Notify(quit, listenOpt.Signals...)
-	<-quit
+	sig := make(chan os.Signal)
 
-	ctx, cancel := context.WithTimeout(context.Background(), listenOpt.ShutdownTimeout)
-	defer cancel()
+	if len(listenOpt.Signals) > 0 {
+		signal.Notify(sig, listenOpt.Signals...)
+	}
 
-	err := srv.Shutdown(ctx)
-	if err != nil && errorHandler != nil {
-		errorHandler(err)
+	select {
+	case <-sig:
+		ctx, cancel := context.WithTimeout(context.Background(), listenOpt.ShutdownTimeout)
+		defer cancel()
+
+		err := srv.Shutdown(ctx)
+		if err != nil && errorHandler != nil {
+			errorHandler(err)
+		}
+
+	case <-stop:
+		break
+
 	}
 }
 
