@@ -8,7 +8,7 @@ import (
 	"sync"
 
 	"github.com/gin-gonic/gin"
-	uuid "github.com/satori/go.uuid"
+	"github.com/google/uuid"
 	validator "gopkg.in/go-playground/validator.v8"
 )
 
@@ -40,7 +40,7 @@ func Handler(h interface{}, status int, options ...func(*Route)) gin.HandlerFunc
 		panic(fmt.Sprintf("handler parameters must be a function, got %T", h))
 	}
 	ht := hv.Type()
-	fname := fmt.Sprintf("%s_%s", runtime.FuncForPC(hv.Pointer()).Name(), uuid.Must(uuid.NewV4()).String())
+	fname := fmt.Sprintf("%s_%s", runtime.FuncForPC(hv.Pointer()).Name(), uuid.Must(uuid.NewRandom()).String())
 
 	in := input(ht, fname)
 	out := output(ht, fname)
