@@ -115,7 +115,7 @@ func TestBody(t *testing.T) {
 	tester.AddCall("body2", "POST", "/body", `{}`).Checkers(iffy.ExpectStatus(400))
 	tester.AddCall("body3", "POST", "/body", `{"param": ""}`).Checkers(iffy.ExpectStatus(400))
 	tester.AddCall("body4", "POST", "/body", `{"param": "foo", "param-optional": "bar"}`).Checkers(iffy.ExpectStatus(200), expectString("param-optional", "bar"))
-	tester.AddCall("body5", "POST", "/body", `{"param": "foo", "param-optional-validated": "ttttt"}`).Checkers(iffy.ExpectStatus(400), expectStringInBody("failed on the 'eq|eq|gt' tag"))
+	tester.AddCall("body5", "POST", "/body", `{"param": "foo", "param-optional-validated": "ttttt"}`).Checkers(iffy.ExpectStatus(400), expectStringInBody("failed on the 'eq=|eq=foo|gt=10' tag"))
 	tester.AddCall("body6", "POST", "/body", `{"param": "foo", "param-optional-validated": "foo"}`).Checkers(iffy.ExpectStatus(200), expectString("param-optional-validated", "foo"))
 	tester.AddCall("body7", "POST", "/body", `{"param": "foo", "param-optional-validated": "foobarfoobuz"}`).Checkers(iffy.ExpectStatus(200), expectString("param-optional-validated", "foobarfoobuz"))
 
@@ -273,7 +273,7 @@ func expectStringInBody(value string) func(*http.Response, string, interface{}) 
 
 	return func(r *http.Response, body string, obj interface{}) error {
 		if !strings.Contains(body, value) {
-			return fmt.Errorf("body doesn't contains '%s'", value)
+			return fmt.Errorf("body doesn't contain '%s' (%s)", value, body)
 		}
 		return nil
 	}

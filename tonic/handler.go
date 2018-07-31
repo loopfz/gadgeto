@@ -9,7 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	validator "gopkg.in/go-playground/validator.v8"
+	validator "gopkg.in/go-playground/validator.v9"
 )
 
 var (
@@ -149,7 +149,8 @@ func RegisterValidation(tagName string, validationFunc validator.Func) error {
 
 func initValidator() {
 	validatorOnce.Do(func() {
-		validatorObj = validator.New(&validator.Config{TagName: ValidationTag})
+		validatorObj = validator.New()
+		validatorObj.SetTagName(ValidationTag)
 	})
 }
 
