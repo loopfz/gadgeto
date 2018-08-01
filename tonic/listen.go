@@ -25,17 +25,35 @@ func ListenAndServe(handler http.Handler, errorHandler func(error), opt ...Liste
 	listenOpt := &ListenOpt{Server: srv}
 
 	for _, o := range defaultOpts {
-		o(listenOpt)
+		err := o(listenOpt)
+		if err != nil {
+			if errorHandler != nil {
+				errorHandler(err)
+			}
+			return
+		}
 	}
 
 	for _, o := range opt {
-		o(listenOpt)
+		err := o(listenOpt)
+		if err != nil {
+			if errorHandler != nil {
+				errorHandler(err)
+			}
+			return
+		}
 	}
 
 	stop := make(chan struct{})
 
 	go func() {
-		err := srv.ListenAndServe()
+		var err error
+		if srv.TLSConfig != nil && len(srv.TLSConfig.Certificates) > 0 {
+			// ListenAndServeTLS without cert files lets listenOpts set srv.TLSConfig.Certificates
+			err = srv.ListenAndServeTLS("", "")
+		} else {
+			err = srv.ListenAndServe()
+		}
 		if err != nil && err != http.ErrServerClosed && errorHandler != nil {
 			errorHandler(err)
 		}
@@ -70,46 +88,53 @@ type ListenOpt struct {
 	ShutdownTimeout time.Duration
 }
 
-type ListenOptFunc func(*ListenOpt)
+type ListenOptFunc func(*ListenOpt) error
 
 func CatchSignals(sig ...os.Signal) ListenOptFunc {
-	return func(opt *ListenOpt) {
+	return func(opt *ListenOpt) error {
 		opt.Signals = sig
+		return nil
 	}
 }
 
 func ListenAddr(addr string) ListenOptFunc {
-	return func(opt *ListenOpt) {
+	return func(opt *ListenOpt) error {
 		opt.Server.Addr = addr
+		return nil
 	}
 }
 
 func ReadTimeout(t time.Duration) ListenOptFunc {
-	return func(opt *ListenOpt) {
+	return func(opt *ListenOpt) error {
 		opt.Server.ReadTimeout = t
+		return nil
 	}
 }
 
 func ReadHeaderTimeout(t time.Duration) ListenOptFunc {
-	return func(opt *ListenOpt) {
+	return func(opt *ListenOpt) error {
 		opt.Server.ReadHeaderTimeout = t
+		return nil
 	}
 }
 
 func WriteTimeout(t time.Duration) ListenOptFunc {
-	return func(opt *ListenOpt) {
+	return func(opt *ListenOpt) error {
 		opt.Server.WriteTimeout = t
+		return nil
 	}
 }
 
 func KeepAliveTimeout(t time.Duration) ListenOptFunc {
-	return func(opt *ListenOpt) {
+	return func(opt *ListenOpt) error {
 		opt.Server.IdleTimeout = t
+		return nil
 	}
 }
 
 func ShutdownTimeout(t time.Duration) ListenOptFunc {
-	return func(opt *ListenOpt) {
+	return func(opt *ListenOpt) error {
 		opt.ShutdownTimeout = t
+		return nil
 	}
 }
