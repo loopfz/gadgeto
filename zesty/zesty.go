@@ -1,6 +1,7 @@
 package zesty
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -26,6 +27,7 @@ type DB interface {
 	Begin() (Tx, error)
 	Close() error
 	Ping() error
+	PingContext(context.Context) error
 	Stats() sql.DBStats
 }
 
@@ -46,6 +48,7 @@ type DBProvider interface {
 	RollbackTo(SavePoint) error
 	Close() error
 	Ping() error
+	PingContext(context.Context) error
 	Stats() sql.DBStats
 }
 
@@ -220,6 +223,10 @@ func (zp *zestyprovider) Ping() error {
 	return zp.db.Ping()
 }
 
+func (zp *zestyprovider) PingContext(ctx context.Context) error {
+	return zp.db.PingContext(ctx)
+}
+
 func (zp *zestyprovider) Stats() sql.DBStats {
 	return zp.db.Stats()
 }
@@ -242,6 +249,10 @@ func (zd *zestydb) Close() error {
 
 func (zd *zestydb) Ping() error {
 	return zd.DbMap.Db.Ping()
+}
+
+func (zd *zestydb) PingContext(ctx context.Context) error {
+	return zd.DbMap.Db.PingContext(ctx)
 }
 
 func (zd *zestydb) Stats() sql.DBStats {
