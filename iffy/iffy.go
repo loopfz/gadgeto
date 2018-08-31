@@ -113,7 +113,8 @@ func (t *Tester) Run() {
 					t.t.Error(err)
 				}
 			}
-			var retJson map[string]interface{}
+
+			var retJson interface{}
 			err = json.Unmarshal(rb, &retJson)
 			if err == nil {
 				t.values[c.Name] = retJson
