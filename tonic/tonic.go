@@ -13,6 +13,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
+	validator "gopkg.in/go-playground/validator.v9"
 )
 
 // MaxBodyBytes is the maximum allowed size of a request body in bytes.
@@ -208,9 +209,10 @@ func Deprecated(b bool) func(*Route) {
 // to bind parameters, to differentiate from errors returned
 // by the handlers.
 type BindError struct {
-	message string
-	typ     reflect.Type
-	field   string
+	validationErr error
+	message       string
+	typ           reflect.Type
+	field         string
 }
 
 // Error implements the builtin error interface for BindError.
@@ -224,6 +226,15 @@ func (be BindError) Error() string {
 		)
 	}
 	return fmt.Sprintf("binding error: %s", be.message)
+}
+
+// ValidationErrors returns the errors from the validate process.
+func (be BindError) ValidationErrors() validator.ValidationErrors {
+	switch t := be.validationErr.(type) {
+	case validator.ValidationErrors:
+		return t
+	}
+	return nil
 }
 
 // An extractorFunc extracts data from a gin context according to
