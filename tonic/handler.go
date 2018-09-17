@@ -94,7 +94,7 @@ func Handler(h interface{}, status int, options ...func(*Route)) gin.HandlerFunc
 			initValidator()
 			args = append(args, input)
 			if err := validatorObj.Struct(input.Interface()); err != nil {
-				handleError(c, BindError{message: err.Error()})
+				handleError(c, BindError{message: err.Error(), validationErr: err})
 				return
 			}
 		}
