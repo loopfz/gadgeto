@@ -18,6 +18,7 @@ type Tester struct {
 	r      http.Handler
 	Calls  []*Call
 	values Values
+	Fatal  bool
 }
 
 type Headers map[string]string
@@ -123,11 +124,16 @@ func (t *Tester) Run() {
 				t.values[c.Name] = retJson
 			}
 		}
+		failed := false
 		for _, checker := range c.checkers {
 			err = checker(resp, respBody, c.respObject)
 			if err != nil {
 				t.t.Errorf("%s: %s", c.Name, err)
+				failed = true
 			}
+		}
+		if failed && t.Fatal {
+			t.t.FailNow()
 		}
 	}
 }
