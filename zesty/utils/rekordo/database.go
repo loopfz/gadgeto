@@ -3,6 +3,7 @@ package rekordo
 import (
 	"database/sql"
 	"errors"
+	"time"
 
 	"github.com/go-gorp/gorp"
 	"github.com/loopfz/gadgeto/zesty"
@@ -10,8 +11,8 @@ import (
 
 // Default database settings.
 const (
-	maxOpenConns = 5
-	maxIdleConns = 3
+	maxOpenConns    = 5
+	maxIdleConns    = 3
 )
 
 // DatabaseConfig represents the configuration used to
@@ -22,6 +23,7 @@ type DatabaseConfig struct {
 	System           DBMS
 	MaxOpenConns     int
 	MaxIdleConns     int
+	ConnMaxLifetime  time.Duration
 	AutoCreateTables bool
 }
 
@@ -43,6 +45,7 @@ func RegisterDatabase(dbcfg *DatabaseConfig, tc gorp.TypeConverter) (zesty.DB, e
 		dbcfg.MaxIdleConns = maxIdleConns
 	}
 	dbConn.SetMaxIdleConns(dbcfg.MaxIdleConns)
+	dbConn.SetConnMaxLifetime(dbcfg.ConnMaxLifetime)
 
 	// Select the proper dialect used by gorp.
 	var dialect gorp.Dialect
