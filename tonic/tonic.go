@@ -98,7 +98,13 @@ func DefaultBindingHook(c *gin.Context, i interface{}) error {
 // DefaultRenderHook is the default render hook.
 // It marshals the payload to JSON, or returns an empty body if the payload is nil.
 // If Gin is running in debug mode, the marshalled JSON is indented.
-func DefaultRenderHook(c *gin.Context, status int, payload interface{}) {
+func DefaultRenderHook(c *gin.Context, statusCode int, payload interface{}) {
+	var status int
+	if c.Writer.Written() {
+		status = c.Writer.Status()
+	} else {
+		status = statusCode
+	}
 	if payload != nil {
 		if gin.IsDebugging() {
 			c.IndentedJSON(status, payload)
