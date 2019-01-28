@@ -192,6 +192,14 @@ func bind(c *gin.Context, v reflect.Value, tag string, extract extractor) error 
 		if tagValue == "" {
 			continue
 		}
+		// Set-up context for extractors.
+		// Query.
+		explode, ok := ft.Tag.Lookup(ExplodeTag)
+		if ok && explode == "false" {
+			c.Set(ExplodeTag, false)
+		} else {
+			c.Set(ExplodeTag, true)
+		}
 		_, fieldValues, err := extract(c, tagValue)
 		if err != nil {
 			return BindError{field: ft.Name, typ: t, message: err.Error()}
