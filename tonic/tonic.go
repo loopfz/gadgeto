@@ -2,6 +2,7 @@ package tonic
 
 import (
 	"encoding"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -272,7 +273,9 @@ func extractQuery(c *gin.Context, tag string) (string, []string, error) {
 		splitFn := func(c rune) bool {
 			return c == ','
 		}
-		if len(query) > 0 {
+		if len(query) > 1 {
+			return name, nil, errors.New("repeating values not supported: use comma-separated list")
+		} else if len(query) == 1 {
 			params = strings.FieldsFunc(query[0], splitFn)
 		}
 	}
