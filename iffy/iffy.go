@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-
 	"testing"
 	"text/template"
 )
@@ -75,66 +74,68 @@ func (t *Tester) AddCall(name, method, querystr, body string) *Call {
 	return c
 }
 
-func (t *Tester) Run() {
-	for _, c := range t.Calls {
-		body := bytes.NewBufferString(t.applyTemplate(c.Body))
-		requestURI := t.applyTemplate(c.QueryStr)
+func (it *Tester) Run() {
+	for _, c := range it.Calls {
+		it.t.Run(c.Name, func(t *testing.T) {
+			body := bytes.NewBufferString(it.applyTemplate(c.Body))
+			requestURI := it.applyTemplate(c.QueryStr)
 
-		req, err := http.NewRequest(c.Method, requestURI, body)
-		if err != nil {
-			t.t.Error(err)
-			continue
-		}
-
-		// Save unparsed url for http routers whi use it
-		req.RequestURI = requestURI
-
-		if c.Body != "" {
-			req.Header.Set("content-type", "application/json")
-		}
-		if c.headers != nil {
-			for k, v := range c.headers {
-				req.Header.Set(t.applyTemplate(k), t.applyTemplate(v))
-			}
-		}
-		w := httptest.NewRecorder()
-		t.r.ServeHTTP(w, req)
-		resp := w.Result()
-		var respBody string
-		if resp.Body != nil {
-			rb, err := ioutil.ReadAll(resp.Body)
+			req, err := http.NewRequest(c.Method, requestURI, body)
 			if err != nil {
-				t.t.Error(err)
+				t.Error(err)
+				return
 			}
-			respBody = string(rb)
-			resp.Body.Close()
-			if c.respObject != nil {
-				err = json.Unmarshal(rb, c.respObject)
-				if err != nil {
-					t.t.Error(err)
+
+			// Save unparsed url for http routers whi use it
+			req.RequestURI = requestURI
+
+			if c.Body != "" {
+				req.Header.Set("content-type", "application/json")
+			}
+			if c.headers != nil {
+				for k, v := range c.headers {
+					req.Header.Set(it.applyTemplate(k), it.applyTemplate(v))
 				}
 			}
+			w := httptest.NewRecorder()
+			it.r.ServeHTTP(w, req)
+			resp := w.Result()
+			var respBody string
+			if resp.Body != nil {
+				rb, err := ioutil.ReadAll(resp.Body)
+				if err != nil {
+					t.Error(err)
+				}
+				respBody = string(rb)
+				resp.Body.Close()
+				if c.respObject != nil {
+					err = json.Unmarshal(rb, c.respObject)
+					if err != nil {
+						t.Error(err)
+					}
+				}
 
-			dec := json.NewDecoder(bytes.NewBuffer(rb))
-			dec.UseNumber()
+				dec := json.NewDecoder(bytes.NewBuffer(rb))
+				dec.UseNumber()
 
-			var retJson interface{}
-			err = dec.Decode(&retJson)
-			if err == nil {
-				t.values[c.Name] = retJson
+				var retJson interface{}
+				err = dec.Decode(&retJson)
+				if err == nil {
+					it.values[c.Name] = retJson
+				}
 			}
-		}
-		failed := false
-		for _, checker := range c.checkers {
-			err = checker(resp, respBody, c.respObject)
-			if err != nil {
-				t.t.Errorf("%s: %s", c.Name, err)
-				failed = true
+			failed := false
+			for _, checker := range c.checkers {
+				err = checker(resp, respBody, c.respObject)
+				if err != nil {
+					t.Errorf("%s: %s", c.Name, err)
+					failed = true
+				}
 			}
-		}
-		if failed && t.Fatal {
-			t.t.FailNow()
-		}
+			if failed && it.Fatal {
+				t.FailNow()
+			}
+		})
 	}
 }
 
