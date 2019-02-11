@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -192,6 +193,14 @@ func bind(c *gin.Context, v reflect.Value, tag string, extract extractor) error 
 		if tagValue == "" {
 			continue
 		}
+		// Set-up context for extractors.
+		// Query.
+		c.Set(ExplodeTag, true) // default
+		if explodeVal, ok := ft.Tag.Lookup(ExplodeTag); ok {
+			if explode, err := strconv.ParseBool(explodeVal); err == nil && !explode {
+				c.Set(ExplodeTag, false)
+			}
+		}
 		_, fieldValues, err := extract(c, tagValue)
 		if err != nil {
 			return BindError{field: ft.Name, typ: t, message: err.Error()}
@@ -200,7 +209,11 @@ func bind(c *gin.Context, v reflect.Value, tag string, extract extractor) error 
 		// if no values were returned.
 		def, ok := ft.Tag.Lookup(DefaultTag)
 		if ok && len(fieldValues) == 0 {
-			fieldValues = append(fieldValues, def)
+			if c.GetBool(ExplodeTag) {
+				fieldValues = append(fieldValues, strings.Split(def, ",")...)
+			} else {
+				fieldValues = append(fieldValues, def)
+			}
 		}
 		if len(fieldValues) == 0 {
 			continue

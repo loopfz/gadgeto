@@ -2,6 +2,7 @@ package tonic
 
 import (
 	"encoding"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -28,6 +29,7 @@ const (
 	RequiredTag   = "required"
 	DefaultTag    = "default"
 	ValidationTag = "validate"
+	ExplodeTag    = "explode"
 )
 
 const (
@@ -254,27 +256,39 @@ func extractQuery(c *gin.Context, tag string) (string, []string, error) {
 	if err != nil {
 		return "", nil, err
 	}
+	var params []string
+	query := c.Request.URL.Query()[name]
 
-	rawQ := c.Request.URL.Query()[name]
-
-	// delete empty elements so default+required will play nice together
-	// append to a new collection to preserve order without too much copying
-	q := make([]string, 0, len(rawQ))
-	for i := range rawQ {
-		if rawQ[i] != "" {
-			q = append(q, rawQ[i])
+	if c.GetBool(ExplodeTag) {
+		// Delete empty elements so default and required arguments
+		// will play nice together. Append to a new collection to
+		// preserve order without too much copying.
+		params = make([]string, 0, len(query))
+		for i := range query {
+			if query[i] != "" {
+				params = append(params, query[i])
+			}
+		}
+	} else {
+		splitFn := func(c rune) bool {
+			return c == ','
+		}
+		if len(query) > 1 {
+			return name, nil, errors.New("repeating values not supported: use comma-separated list")
+		} else if len(query) == 1 {
+			params = strings.FieldsFunc(query[0], splitFn)
 		}
 	}
 
 	// XXX: deprecated, use of "default" tag is preferred
-	if len(q) == 0 && defaultVal != "" {
+	if len(params) == 0 && defaultVal != "" {
 		return name, []string{defaultVal}, nil
 	}
 	// XXX: deprecated, use of "validate" tag is preferred
-	if len(q) == 0 && required {
+	if len(params) == 0 && required {
 		return "", nil, fmt.Errorf("missing query parameter: %s", name)
 	}
-	return name, q, nil
+	return name, params, nil
 }
 
 // extractPath is an extractor that operates on the path
