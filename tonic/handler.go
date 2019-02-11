@@ -209,7 +209,11 @@ func bind(c *gin.Context, v reflect.Value, tag string, extract extractor) error 
 		// if no values were returned.
 		def, ok := ft.Tag.Lookup(DefaultTag)
 		if ok && len(fieldValues) == 0 {
-			fieldValues = append(fieldValues, def)
+			if c.GetBool(ExplodeTag) {
+				fieldValues = append(fieldValues, strings.Split(def, ",")...)
+			} else {
+				fieldValues = append(fieldValues, def)
+			}
 		}
 		if len(fieldValues) == 0 {
 			continue
