@@ -17,8 +17,8 @@ import (
 	validator "gopkg.in/go-playground/validator.v9"
 )
 
-// MaxBodyBytes is the maximum allowed size of a request body in bytes.
-const MaxBodyBytes = 256 * 1024
+// DefaultMaxBodyBytes is the maximum allowed size of a request body in bytes.
+const DefaultMaxBodyBytes = 256 * 1024
 
 // Fields tags used by tonic.
 const (
@@ -86,15 +86,20 @@ func DefaultErrorHook(c *gin.Context, e error) (int, interface{}) {
 // It uses Gin JSON binding to bind the body parameters of the request
 // to the input object of the handler.
 // Ir teturns an error if Gin binding fails.
-func DefaultBindingHook(c *gin.Context, i interface{}) error {
-	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, MaxBodyBytes)
-	if c.Request.ContentLength == 0 || c.Request.Method == http.MethodGet {
+var DefaultBindingHook BindHook = DefaultBindingHookMaxBodyBytes(DefaultMaxBodyBytes)
+
+// DefaultBindingHookMaxBodyBytes returns a BindHook with the default logic, with configurable MaxBodyBytes.
+func DefaultBindingHookMaxBodyBytes(maxBodyBytes int64) BindHook {
+	return func(c *gin.Context, i interface{}) error {
+		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxBodyBytes)
+		if c.Request.ContentLength == 0 || c.Request.Method == http.MethodGet {
+			return nil
+		}
+		if err := c.ShouldBindWith(i, binding.JSON); err != nil && err != io.EOF {
+			return fmt.Errorf("error parsing request body: %s", err.Error())
+		}
 		return nil
 	}
-	if err := c.ShouldBindWith(i, binding.JSON); err != nil && err != io.EOF {
-		return fmt.Errorf("error parsing request body: %s", err.Error())
-	}
-	return nil
 }
 
 // DefaultRenderHook is the default render hook.
