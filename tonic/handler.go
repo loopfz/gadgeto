@@ -50,16 +50,7 @@ func Handler(h interface{}, status int, options ...func(*Route)) gin.HandlerFunc
 	f := func(c *gin.Context) {
 		_, ok := c.Get(tonicWantRouteInfos)
 		if ok {
-			r := &Route{}
-			r.defaultStatusCode = status
-			r.handler = hv
-			r.handlerType = ht
-			r.inputType = in
-			r.outputType = out
-			for _, opt := range options {
-				opt(r)
-			}
-			c.Set(tonicRoutesInfos, r)
+			c.Set(tonicRoutesInfos, routes[fname])
 			c.Abort()
 			return
 		}
