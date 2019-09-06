@@ -32,6 +32,7 @@ func TestMain(m *testing.M) {
 	g.GET("/scalar", tonic.Handler(scalarHandler, 200))
 	g.GET("/error", tonic.Handler(errorHandler, 200))
 	g.GET("/path/:param", tonic.Handler(pathHandler, 200))
+	g.GET("/path-list/:param-path-list", tonic.Handler(pathListHandler, 200))
 	g.GET("/query", tonic.Handler(queryHandler, 200))
 	g.GET("/query-old", tonic.Handler(queryHandlerOld, 200))
 	g.POST("/body", tonic.Handler(bodyHandler, 200))
@@ -87,13 +88,13 @@ func TestPathQuery(t *testing.T) {
 
 	tester.AddCall("query-complex", "GET", fmt.Sprintf("/query?param=foo&param-complex=%s", now), "").Checkers(iffy.ExpectStatus(200), expectString("param-complex", string(now)))
 
-	// Explode.
-	tester.AddCall("query-explode", "GET", "/query?param=foo&param-explode=a&param-explode=b&param-explode=c", "").Checkers(iffy.ExpectStatus(200), expectStringArr("param-explode", "a", "b", "c"))
-	tester.AddCall("query-explode-disabled-ok", "GET", "/query?param=foo&param-explode-disabled=x,y,z", "").Checkers(iffy.ExpectStatus(200), expectStringArr("param-explode-disabled", "x", "y", "z"))
-	tester.AddCall("query-explode-disabled-error", "GET", "/query?param=foo&param-explode-disabled=a&param-explode-disabled=b", "").Checkers(iffy.ExpectStatus(400))
-	tester.AddCall("query-explode-string", "GET", "/query?param=foo&param-explode-string=x,y,z", "").Checkers(iffy.ExpectStatus(200), expectString("param-explode-string", "x,y,z"))
-	tester.AddCall("query-explode-default", "GET", "/query?param=foo", "").Checkers(iffy.ExpectStatus(200), expectStringArr("param-explode-default", "1", "2", "3"))             // default with explode
-	tester.AddCall("query-explode-disabled-default", "GET", "/query?param=foo", "").Checkers(iffy.ExpectStatus(200), expectStringArr("param-explode-disabled-default", "1,2,3")) // default without explode
+	// Array split
+	tester.AddCall("query-list-nosplit", "GET", "/query?param=foo&param-list-nosplit=a&param-list-nosplit=b&param-list-nosplit=c", "").Checkers(iffy.ExpectStatus(200), expectStringArr("param-list-nosplit", "a", "b", "c"))
+	tester.AddCall("query-list-split", "GET", "/query?param=foo&param-list-split=x,y,z", "").Checkers(iffy.ExpectStatus(200), expectStringArr("param-list-split", "x", "y", "z"))
+	tester.AddCall("query-list-split-repeated", "GET", "/query?param=foo&param-list-split=a&param-list-split=b", "").Checkers(iffy.ExpectStatus(400))
+	tester.AddCall("query-list-nosplit-single", "GET", "/query?param=foo&param-list-string-nosplit=x,y,z", "").Checkers(iffy.ExpectStatus(200), expectString("param-list-string-nosplit", "x,y,z"))
+	tester.AddCall("query-list-default", "GET", "/query?param=foo", "").Checkers(iffy.ExpectStatus(200), expectStringArr("param-list-default", "1", "2", "3")) // default with explode
+	tester.AddCall("path-list", "GET", "/path-list/1,2,3", "").Checkers(iffy.ExpectStatus(200), expectStringArr("param-path-list", "1", "2", "3"))
 
 	tester.Run()
 }
@@ -150,20 +151,27 @@ func pathHandler(c *gin.Context, in *pathIn) (*pathIn, error) {
 	return in, nil
 }
 
+type pathListIn struct {
+	ParamPathList []string `path:"param-path-list" json:"param-path-list" commalist:"true"`
+}
+
+func pathListHandler(c *gin.Context, in *pathListIn) (*pathListIn, error) {
+	return in, nil
+}
+
 type queryIn struct {
-	Param                       string    `query:"param" json:"param" validate:"required"`
-	ParamOptional               string    `query:"param-optional" json:"param-optional"`
-	Params                      []string  `query:"params" json:"params"`
-	ParamInt                    int       `query:"param-int" json:"param-int"`
-	ParamBool                   bool      `query:"param-bool" json:"param-bool"`
-	ParamDefault                string    `query:"param-default" json:"param-default" default:"default" validate:"required"`
-	ParamPtr                    *string   `query:"param-ptr" json:"param-ptr"`
-	ParamComplex                time.Time `query:"param-complex" json:"param-complex"`
-	ParamExplode                []string  `query:"param-explode" json:"param-explode" explode:"true"`
-	ParamExplodeDisabled        []string  `query:"param-explode-disabled" json:"param-explode-disabled" explode:"false"`
-	ParamExplodeString          string    `query:"param-explode-string" json:"param-explode-string" explode:"true"`
-	ParamExplodeDefault         []string  `query:"param-explode-default" json:"param-explode-default" default:"1,2,3" explode:"true"`
-	ParamExplodeDefaultDisabled []string  `query:"param-explode-disabled-default" json:"param-explode-disabled-default" default:"1,2,3" explode:"false"`
+	Param                  string    `query:"param" json:"param" validate:"required"`
+	ParamOptional          string    `query:"param-optional" json:"param-optional"`
+	Params                 []string  `query:"params" json:"params"`
+	ParamInt               int       `query:"param-int" json:"param-int"`
+	ParamBool              bool      `query:"param-bool" json:"param-bool"`
+	ParamDefault           string    `query:"param-default" json:"param-default" default:"default" validate:"required"`
+	ParamPtr               *string   `query:"param-ptr" json:"param-ptr"`
+	ParamComplex           time.Time `query:"param-complex" json:"param-complex"`
+	ParamListNoSplit       []string  `query:"param-list-nosplit" json:"param-list-nosplit"`
+	ParamListSplit         []string  `query:"param-list-split" json:"param-list-split" commalist:"true"`
+	ParamListStringNoSplit string    `query:"param-list-string-nosplit" json:"param-list-string-nosplit"`
+	ParamListDefault       []string  `query:"param-list-default" json:"param-list-default" default:"1,2,3" commalist:"true"`
 	*DoubleEmbedded
 }
 
