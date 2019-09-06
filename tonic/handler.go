@@ -195,10 +195,10 @@ func bind(c *gin.Context, v reflect.Value, tag string, extract extractor) error 
 		}
 		// Set-up context for extractors.
 		// Query.
-		c.Set(ExplodeTag, true) // default
-		if explodeVal, ok := ft.Tag.Lookup(ExplodeTag); ok {
-			if explode, err := strconv.ParseBool(explodeVal); err == nil && !explode {
-				c.Set(ExplodeTag, false)
+		c.Set(ArrayTag, false)
+		if arrayVal, ok := ft.Tag.Lookup(ArrayTag); ok {
+			if array, err := strconv.ParseBool(arrayVal); err == nil && array {
+				c.Set(ArrayTag, true)
 			}
 		}
 		_, fieldValues, err := extract(c, tagValue)
@@ -209,7 +209,7 @@ func bind(c *gin.Context, v reflect.Value, tag string, extract extractor) error 
 		// if no values were returned.
 		def, ok := ft.Tag.Lookup(DefaultTag)
 		if ok && len(fieldValues) == 0 {
-			if c.GetBool(ExplodeTag) {
+			if c.GetBool(ArrayTag) {
 				fieldValues = append(fieldValues, strings.Split(def, ",")...)
 			} else {
 				fieldValues = append(fieldValues, def)

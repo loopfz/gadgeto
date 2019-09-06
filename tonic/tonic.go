@@ -29,7 +29,7 @@ const (
 	RequiredTag   = "required"
 	DefaultTag    = "default"
 	ValidationTag = "validate"
-	ExplodeTag    = "explode"
+	ArrayTag      = "commalist"
 )
 
 const (
@@ -264,7 +264,7 @@ func extractQuery(c *gin.Context, tag string) (string, []string, error) {
 	var params []string
 	query := c.Request.URL.Query()[name]
 
-	if c.GetBool(ExplodeTag) {
+	if !c.GetBool(ArrayTag) {
 		// Delete empty elements so default and required arguments
 		// will play nice together. Append to a new collection to
 		// preserve order without too much copying.
@@ -303,18 +303,28 @@ func extractPath(c *gin.Context, tag string) (string, []string, error) {
 	if err != nil {
 		return "", nil, err
 	}
-	p := c.Param(name)
+
+	var params []string
+
+	if !c.GetBool(ArrayTag) {
+		params = []string{c.Param(name)}
+	} else {
+		splitFn := func(c rune) bool {
+			return c == ','
+		}
+		params = strings.FieldsFunc(c.Param(name), splitFn)
+	}
 
 	// XXX: deprecated, use of "default" tag is preferred
-	if p == "" && defaultVal != "" {
+	if len(params) == 0 && defaultVal != "" {
 		return name, []string{defaultVal}, nil
 	}
 	// XXX: deprecated, use of "validate" tag is preferred
-	if p == "" && required {
+	if len(params) == 0 && required {
 		return "", nil, fmt.Errorf("missing path parameter: %s", name)
 	}
 
-	return name, []string{p}, nil
+	return name, params, nil
 }
 
 // extractHeader is an extractor that operates on the headers
