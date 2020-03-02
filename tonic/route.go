@@ -17,6 +17,7 @@ type Route struct {
 	description       string
 	summary           string
 	deprecated        bool
+	tags              []string
 
 	// Handler is the route handler.
 	handler reflect.Value
@@ -90,8 +91,13 @@ func (r *Route) HandlerNameWithPackage() string {
 
 // GetTags generates a list of tags for the swagger spec
 // from one route definition.
-// Currently it only takes the first path of the route as the tag.
+// It uses the first chunk of the path of the route as the tag
+// (for example, in /foo/bar it will return the "foo" tag),
+// unless specific tags have been defined with tonic.Tags
 func (r *Route) GetTags() []string {
+	if r.tags != nil {
+		return r.tags
+	}
 	tags := make([]string, 0, 1)
 	paths := strings.SplitN(r.GetPath(), "/", 3)
 	if len(paths) > 1 {
