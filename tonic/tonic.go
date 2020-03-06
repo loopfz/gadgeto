@@ -219,6 +219,13 @@ func Deprecated(b bool) func(*Route) {
 	}
 }
 
+// Tags sets the tags of a route.
+func Tags(tags []string) func(*Route) {
+	return func(r *Route) {
+		r.tags = tags
+	}
+}
+
 // BindError is an error type returned when tonic fails
 // to bind parameters, to differentiate from errors returned
 // by the handlers.
