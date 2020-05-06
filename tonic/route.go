@@ -5,7 +5,6 @@ import (
 	"reflect"
 	"runtime"
 	"strings"
-	"sync"
 
 	"github.com/gin-gonic/gin"
 )
@@ -110,9 +109,7 @@ func (r *Route) GetTags() []string {
 // GetRouteByHandler returns the route informations of
 // the given wrapped handler.
 func GetRouteByHandler(h gin.HandlerFunc) (*Route, error) {
-	ctx := &gin.Context{
-		KeysMutex: &sync.RWMutex{},
-	}
+	ctx := &gin.Context{}
 	ctx.Set(tonicWantRouteInfos, nil)
 
 	funcsMu.Lock()
