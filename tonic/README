@@ -92,7 +92,7 @@ Example of the same application as before, using juju errors:
     )
 
     type GreetUserInput struct {
-        Name string `path:"name" description:"User name" validate="required"`
+        Name string `path:"name" description:"User name" validate:"required"`
     }
 
     type GreetUserOutput struct {
