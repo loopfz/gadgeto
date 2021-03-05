@@ -114,22 +114,4 @@ Example of the same application as before, using juju errors:
     }
 
 
-You can also easily serve auto-generated (using tonic data) swagger documentation:
-
-    import (
-         "fmt"
-
-         "github.com/gin-gonic/gin"
-         "github.com/juju/errors"
-         "github.com/loopfz/gadgeto/tonic"
-         "github.com/loopfz/gadgeto/tonic/utils/jujerr"
-         "github.com/loopfz/gadgeto/tonic/utils/swag"
-    )
-
-    func main() {
-        tonic.SetErrorHook(jujerr.ErrHook)
-        r := gin.Default()
-        r.GET("/hello/:name", tonic.Handler(GreetUser, 200))
-        r.GET("/swagger.json", swag.Swagger(r, "MyAPI", swag.Version("v1.0"), swag.BasePath("/foo/bar")))
-        r.Run(":8080")
-    }
+You can also easily serve auto-generated swagger documentation (using tonic data) with https://github.com/wi2l/fizz
