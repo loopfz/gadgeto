@@ -26,7 +26,7 @@ func ListenAndServe(handler http.Handler, errorHandler func(error), opt ...Liste
 	}{}
 	srv := &http.Server{Handler: handler}
 
-	listenOpt := &ListenOpt{Listener: listener, Server: srv}
+	listenOpt := &ListenOpt{Listener: &listener, Server: srv}
 
 	for _, o := range defaultOpts {
 		err := o(listenOpt)
