@@ -2,6 +2,7 @@ package tonic
 
 import (
 	"context"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -20,9 +21,12 @@ var defaultOpts = []ListenOptFunc{
 
 func ListenAndServe(handler http.Handler, errorHandler func(error), opt ...ListenOptFunc) {
 
+	listener := struct {
+		net.Listener
+	}{}
 	srv := &http.Server{Handler: handler}
 
-	listenOpt := &ListenOpt{Server: srv}
+	listenOpt := &ListenOpt{Listener: &listener, Server: srv}
 
 	for _, o := range defaultOpts {
 		err := o(listenOpt)
@@ -48,11 +52,19 @@ func ListenAndServe(handler http.Handler, errorHandler func(error), opt ...Liste
 
 	go func() {
 		var err error
-		if srv.TLSConfig != nil && len(srv.TLSConfig.Certificates) > 0 {
-			// ListenAndServeTLS without cert files lets listenOpts set srv.TLSConfig.Certificates
-			err = srv.ListenAndServeTLS("", "")
-		} else {
-			err = srv.ListenAndServe()
+		var ln net.Listener
+
+		ln, err = net.Listen("tcp", listenOpt.Server.Addr)
+		if err == nil {
+			// delayed listen, store it in the original listener object so any wrapping listener from listenOpt
+			// will have a correct reference
+			listener.Listener = ln
+			if srv.TLSConfig != nil && len(srv.TLSConfig.Certificates) > 0 {
+				// ServeTLS without cert files lets listenOpts set srv.TLSConfig.Certificates
+				err = listenOpt.Server.ServeTLS(listenOpt.Listener, "", "")
+			} else {
+				err = listenOpt.Server.Serve(listenOpt.Listener)
+			}
 		}
 		if err != nil && err != http.ErrServerClosed && errorHandler != nil {
 			errorHandler(err)
@@ -82,7 +94,10 @@ func ListenAndServe(handler http.Handler, errorHandler func(error), opt ...Liste
 	}
 }
 
+// ListenOpt exposes the Server object so you may change its configuration
+// e.g. TLSConfig, and a Listener so that you may wrap it e.g. proxyprotocol
 type ListenOpt struct {
+	Listener        net.Listener
 	Server          *http.Server
 	Signals         []os.Signal
 	ShutdownTimeout time.Duration
