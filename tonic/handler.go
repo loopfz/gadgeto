@@ -154,14 +154,15 @@ func RegisterValidation(tagName string, validationFunc validator.Func) error {
 //
 // eg. to use the names which have been specified for JSON representations of structs, rather than normal Go field names:
 //
-//    validate.RegisterTagNameFunc(func(fld reflect.StructField) string {
+//    tonic.RegisterTagNameFunc(func(fld reflect.StructField) string {
 //        name := strings.SplitN(fld.Tag.Get("json"), ",", 2)[0]
 //        if name == "-" {
 //            return ""
 //        }
 //        return name
-//    }
+//    })
 func RegisterTagNameFunc(registerTagFunc validator.TagNameFunc) {
+	initValidator()
 	validatorObj.RegisterTagNameFunc(registerTagFunc)
 }
 
