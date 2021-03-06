@@ -160,8 +160,9 @@ func RegisterValidation(tagName string, validationFunc validator.Func) error {
 //            return ""
 //        }
 //        return name
-//    }
+//    })
 func RegisterTagNameFunc(registerTagFunc validator.TagNameFunc) {
+	initValidator()
 	validatorObj.RegisterTagNameFunc(registerTagFunc)
 }
 
