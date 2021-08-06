@@ -139,7 +139,7 @@ func GetRoutes() map[string]*Route {
 // MediaType returns the current media type (MIME)
 // used by the actual render hook.
 func MediaType() string {
-	return defaultMediaType
+	return mediaType
 }
 
 // GetErrorHook returns the current error hook.
