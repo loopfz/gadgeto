@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"strings"
 	"testing"
@@ -87,6 +88,12 @@ func TestPathQuery(t *testing.T) {
 
 	tester.AddCall("query-complex", "GET", fmt.Sprintf("/query?param=foo&param-complex=%s", now), "").Checkers(iffy.ExpectStatus(200), expectString("param-complex", string(now)))
 
+	// IP.
+	tester.AddCall("query-ip-ok", "GET", "/query?param=foo&param-ip=127.0.0.1", "").Checkers(iffy.ExpectStatus(200), expectString("param-ip", "127.0.0.1"))
+	tester.AddCall("query-ip-error", "GET", "/query?param=foo&param-ip=foo", "").Checkers(iffy.ExpectStatus(400))
+	tester.AddCall("query-ip-list-ok", "GET", "/query?param=foo&param-ip-list=1.1.1.1&param-ip-list=2.2.2.2", "").Checkers(iffy.ExpectStatus(200), expectStringArr("param-ip-list", "1.1.1.1", "2.2.2.2"))
+	tester.AddCall("query-ip-list-error", "GET", "/query?param=foo&param-ip-list=1.1.1.1&param-ip-list=foo", "").Checkers(iffy.ExpectStatus(400))
+
 	// Explode.
 	tester.AddCall("query-explode", "GET", "/query?param=foo&param-explode=a&param-explode=b&param-explode=c", "").Checkers(iffy.ExpectStatus(200), expectStringArr("param-explode", "a", "b", "c"))
 	tester.AddCall("query-explode-disabled-ok", "GET", "/query?param=foo&param-explode-disabled=x,y,z", "").Checkers(iffy.ExpectStatus(200), expectStringArr("param-explode-disabled", "x", "y", "z"))
@@ -164,6 +171,8 @@ type queryIn struct {
 	ParamExplodeString          string    `query:"param-explode-string" json:"param-explode-string" explode:"true"`
 	ParamExplodeDefault         []string  `query:"param-explode-default" json:"param-explode-default" default:"1,2,3" explode:"true"`
 	ParamExplodeDefaultDisabled []string  `query:"param-explode-disabled-default" json:"param-explode-disabled-default" default:"1,2,3" explode:"false"`
+	ParamIP                     net.IP    `query:"param-ip" json:"param-ip"`
+	ParamIPList                 []net.IP  `query:"param-ip-list" json:"param-ip-list"`
 	*DoubleEmbedded
 }
 

@@ -2,6 +2,7 @@ package tonic
 
 import (
 	"fmt"
+	"net"
 	"reflect"
 	"runtime"
 	"strconv"
@@ -252,36 +253,41 @@ func bind(c *gin.Context, v reflect.Value, tag string, extract extractor) error 
 		if len(fieldValues) > 1 && (kind != reflect.Slice && kind != reflect.Array) {
 			return BindError{field: ft.Name, typ: t, message: "multiple values not supported"}
 		}
-		// Ensure that the number of values to fill does
-		// not exceed the length of a field of type Array.
-		if kind == reflect.Array {
-			if field.Len() != len(fieldValues) {
-				return BindError{field: ft.Name, typ: t, message: fmt.Sprintf(
-					"parameter expect %d values, got %d", field.Len(), len(fieldValues)),
+
+		// Don't consider net.IP as an array.
+		if field.Type() != reflect.TypeOf(new(net.IP)).Elem() {
+			// Ensure that the number of values to fill does
+			// not exceed the length of a field of type Array.
+			if kind == reflect.Array {
+				if field.Len() != len(fieldValues) {
+					return BindError{field: ft.Name, typ: t, message: fmt.Sprintf(
+						"parameter expect %d values, got %d", field.Len(), len(fieldValues)),
+					}
 				}
 			}
-		}
-		if kind == reflect.Slice || kind == reflect.Array {
-			// Create a new slice with an adequate
-			// length to set all the values.
-			if kind == reflect.Slice {
-				field.Set(reflect.MakeSlice(field.Type(), 0, len(fieldValues)))
-			}
-			for i, val := range fieldValues {
-				v := reflect.New(field.Type().Elem()).Elem()
-				err = bindStringValue(val, v)
-				if err != nil {
-					return BindError{field: ft.Name, typ: t, message: err.Error()}
-				}
+			if kind == reflect.Slice || kind == reflect.Array {
+				// Create a new slice with an adequate
+				// length to set all the values.
 				if kind == reflect.Slice {
-					field.Set(reflect.Append(field, v))
+					field.Set(reflect.MakeSlice(field.Type(), 0, len(fieldValues)))
 				}
-				if kind == reflect.Array {
-					field.Index(i).Set(v)
+				for i, val := range fieldValues {
+					v := reflect.New(field.Type().Elem()).Elem()
+					err = bindStringValue(val, v)
+					if err != nil {
+						return BindError{field: ft.Name, typ: t, message: err.Error()}
+					}
+					if kind == reflect.Slice {
+						field.Set(reflect.Append(field, v))
+					}
+					if kind == reflect.Array {
+						field.Index(i).Set(v)
+					}
 				}
+				continue
 			}
-			continue
 		}
+
 		// Handle enum values.
 		enum := ft.Tag.Get(EnumTag)
 		if enum != "" {
