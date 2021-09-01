@@ -79,6 +79,9 @@ func TestPathQuery(t *testing.T) {
 	tester.AddCall("query-optional", "GET", "/query?param=foo&param-optional=bar", "").Checkers(iffy.ExpectStatus(200), expectString("param-optional", "bar"))
 	tester.AddCall("query-int", "GET", "/query?param=foo&param-int=42", "").Checkers(iffy.ExpectStatus(200), expectInt("param-int", 42))
 	tester.AddCall("query-multiple", "GET", "/query?param=foo&params=foo&params=bar", "").Checkers(iffy.ExpectStatus(200), expectStringArr("params", "foo", "bar"))
+	tester.AddCall("query-array-ok", "GET", "/query?param=foo&param-array=foo&param-array=bar", "").Checkers(iffy.ExpectStatus(200), expectStringArr("param-array", "foo", "bar"))
+	tester.AddCall("query-array-error-1", "GET", "/query?param=foo&param-array=foo", "").Checkers(iffy.ExpectStatus(400))
+	tester.AddCall("query-array-error-2", "GET", "/query?param=foo&param-array=foo&param-array=bar&param-array=overflow", "").Checkers(iffy.ExpectStatus(400))
 	tester.AddCall("query-bool", "GET", "/query?param=foo&param-bool=true", "").Checkers(iffy.ExpectStatus(200), expectBool("param-bool", true))
 	tester.AddCall("query-override-default", "GET", "/query?param=foo&param-default=bla", "").Checkers(iffy.ExpectStatus(200), expectString("param-default", "bla"))
 	tester.AddCall("query-ptr", "GET", "/query?param=foo&param-ptr=bar", "").Checkers(iffy.ExpectStatus(200), expectString("param-ptr", "bar"))
@@ -91,8 +94,11 @@ func TestPathQuery(t *testing.T) {
 	// IP.
 	tester.AddCall("query-ip-ok", "GET", "/query?param=foo&param-ip=127.0.0.1", "").Checkers(iffy.ExpectStatus(200), expectString("param-ip", "127.0.0.1"))
 	tester.AddCall("query-ip-error", "GET", "/query?param=foo&param-ip=foo", "").Checkers(iffy.ExpectStatus(400))
-	tester.AddCall("query-ip-list-ok", "GET", "/query?param=foo&param-ip-list=1.1.1.1&param-ip-list=2.2.2.2", "").Checkers(iffy.ExpectStatus(200), expectStringArr("param-ip-list", "1.1.1.1", "2.2.2.2"))
-	tester.AddCall("query-ip-list-error", "GET", "/query?param=foo&param-ip-list=1.1.1.1&param-ip-list=foo", "").Checkers(iffy.ExpectStatus(400))
+	tester.AddCall("query-ip-array-ok", "GET", "/query?param=foo&param-ip-array=1.1.1.1&param-ip-array=2.2.2.2", "").Checkers(iffy.ExpectStatus(200), expectStringArr("param-ip-array", "1.1.1.1", "2.2.2.2"))
+	tester.AddCall("query-ip-array-error-1", "GET", "/query?param=foo&param-ip-array=1.1.1.1&param-ip-array=2.2.2.2&param-ip-array=3.3.3.3", "").Checkers(iffy.ExpectStatus(400))
+	tester.AddCall("query-ip-array-error-2", "GET", "/query?param=foo&param-ip-array=1.1.1.1&param-ip-array=foo", "").Checkers(iffy.ExpectStatus(400))
+	tester.AddCall("query-ip-slice-ok", "GET", "/query?param=foo&param-ip-slice=1.1.1.1&param-ip-slice=2.2.2.2", "").Checkers(iffy.ExpectStatus(200), expectStringArr("param-ip-slice", "1.1.1.1", "2.2.2.2"))
+	tester.AddCall("query-ip-slice-error", "GET", "/query?param=foo&param-ip-slice=1.1.1.1&param-ip-slice=foo", "").Checkers(iffy.ExpectStatus(400))
 
 	// Explode.
 	tester.AddCall("query-explode", "GET", "/query?param=foo&param-explode=a&param-explode=b&param-explode=c", "").Checkers(iffy.ExpectStatus(200), expectStringArr("param-explode", "a", "b", "c"))
@@ -161,6 +167,7 @@ type queryIn struct {
 	Param                       string    `query:"param" json:"param" validate:"required"`
 	ParamOptional               string    `query:"param-optional" json:"param-optional"`
 	Params                      []string  `query:"params" json:"params"`
+	ParamArray                  [2]string `query:"param-array" json:"param-array"`
 	ParamInt                    int       `query:"param-int" json:"param-int"`
 	ParamBool                   bool      `query:"param-bool" json:"param-bool"`
 	ParamDefault                string    `query:"param-default" json:"param-default" default:"default" validate:"required"`
@@ -172,7 +179,8 @@ type queryIn struct {
 	ParamExplodeDefault         []string  `query:"param-explode-default" json:"param-explode-default" default:"1,2,3" explode:"true"`
 	ParamExplodeDefaultDisabled []string  `query:"param-explode-disabled-default" json:"param-explode-disabled-default" default:"1,2,3" explode:"false"`
 	ParamIP                     net.IP    `query:"param-ip" json:"param-ip"`
-	ParamIPList                 []net.IP  `query:"param-ip-list" json:"param-ip-list"`
+	ParamIPArray                [2]net.IP `query:"param-ip-array" json:"param-ip-array"`
+	ParamIPSlice                []net.IP  `query:"param-ip-slice" json:"param-ip-slice"`
 	*DoubleEmbedded
 }
 
