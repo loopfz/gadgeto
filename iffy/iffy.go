@@ -28,6 +28,7 @@ type Call struct {
 	QueryStr   string
 	Body       string
 	headers    Headers
+	host       string
 	respObject interface{}
 	checkers   []Checker
 }
@@ -39,6 +40,11 @@ func (c *Call) ResponseObject(respObject interface{}) *Call {
 
 func (c *Call) Headers(h Headers) *Call {
 	c.headers = h
+	return c
+}
+
+func (c *Call) Host(h string) *Call {
+	c.host = h
 	return c
 }
 
@@ -96,6 +102,9 @@ func (it *Tester) Run() {
 				for k, v := range c.headers {
 					req.Header.Set(it.applyTemplate(k), it.applyTemplate(v))
 				}
+			}
+			if c.host != "" {
+				req.Host = c.host
 			}
 			w := httptest.NewRecorder()
 			it.r.ServeHTTP(w, req)
