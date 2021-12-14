@@ -96,7 +96,18 @@ func DefaultBindingHookMaxBodyBytes(maxBodyBytes int64) BindHook {
 		if c.Request.ContentLength == 0 || c.Request.Method == http.MethodGet {
 			return nil
 		}
-		if err := c.ShouldBindWith(i, binding.JSON); err != nil && err != io.EOF {
+		ct := c.Request.Header["Content-Type"]
+		var b binding.Binding = binding.JSON
+
+		if len(ct) == 1 && ct[0] == binding.MIMEPOSTForm {
+			b = binding.Form
+		} else if len(ct) == 1 && ct[0] == binding.MIMEMultipartPOSTForm {
+			b = binding.FormMultipart
+		} else if len(ct) == 1 && ct[0] == binding.MIMEXML {
+			b = binding.XML
+		}
+
+		if err := c.ShouldBindWith(i, b); err != nil && err != io.EOF {
 			return fmt.Errorf("error parsing request body: %s", err.Error())
 		}
 		return nil
