@@ -73,7 +73,7 @@ func Handler(h interface{}, status int, options ...func(*Route)) gin.HandlerFunc
 			input := reflect.New(in)
 			// Bind the body with the hook.
 			if err := bindHook(c, input.Interface()); err != nil {
-				handleError(c, BindError{message: err.Error(), typ: in})
+				handleError(c, BindError{message: err.Error(), typ: in, bindHookErr: err})
 				return
 			}
 			// Bind query-parameters.
