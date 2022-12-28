@@ -28,6 +28,23 @@ func TestMain(m *testing.M) {
 	tonic.SetErrorHook(errorHook)
 
 	g := gin.Default()
+
+	// for context test
+	g.Use(func(c *gin.Context) {
+		if c.FullPath() == "/context" {
+			if val, ok := c.GetQuery("param"); ok {
+				c.Set("param", val)
+			}
+			if val, ok := c.GetQuery("param-optional"); ok {
+				c.Set("param-optional", val)
+			}
+			if val, ok := c.GetQuery("param-optional-validated"); ok {
+				c.Set("param-optional-validated", val)
+			}
+		}
+		c.Next()
+	})
+
 	g.GET("/simple", tonic.Handler(simpleHandler, 200))
 	g.GET("/scalar", tonic.Handler(scalarHandler, 200))
 	g.GET("/error", tonic.Handler(errorHandler, 200))
@@ -35,6 +52,7 @@ func TestMain(m *testing.M) {
 	g.GET("/query", tonic.Handler(queryHandler, 200))
 	g.GET("/query-old", tonic.Handler(queryHandlerOld, 200))
 	g.POST("/body", tonic.Handler(bodyHandler, 200))
+	g.GET("/context", tonic.Handler(contextHandler, 200))
 
 	r = g
 
@@ -130,6 +148,17 @@ func TestBody(t *testing.T) {
 	tester.Run()
 }
 
+func TestContext(t *testing.T) {
+	tester := iffy.NewTester(t, r)
+
+	tester.AddCall("context", "GET", "/context?param=foo", ``).Checkers(iffy.ExpectStatus(200), expectString("param", "foo"))
+	tester.AddCall("context", "GET", "/context", ``).Checkers(iffy.ExpectStatus(400))
+	tester.AddCall("context", "GET", "/context?param=foo&param-optional=bar", ``).Checkers(iffy.ExpectStatus(200), expectString("param-optional", "bar"))
+	tester.AddCall("context", "GET", "/context?param=foo&param-optional-validated=foo", ``).Checkers(iffy.ExpectStatus(200), expectString("param-optional-validated", "foo"))
+
+	tester.Run()
+}
+
 func errorHandler(c *gin.Context) error {
 	return errors.New("error")
 }
@@ -196,6 +225,16 @@ type bodyIn struct {
 }
 
 func bodyHandler(c *gin.Context, in *bodyIn) (*bodyIn, error) {
+	return in, nil
+}
+
+type ContextIn struct {
+	Param                  string `context:"param" json:"param" validate:"required"`
+	ParamOptional          string `context:"param-optional" json:"param-optional"`
+	ValidatedParamOptional string `context:"param-optional-validated" json:"param-optional-validated" validate:"eq=|eq=foo|gt=10"`
+}
+
+func contextHandler(c *gin.Context, in *ContextIn) (*ContextIn, error) {
 	return in, nil
 }
 
