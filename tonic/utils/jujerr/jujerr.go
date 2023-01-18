@@ -3,7 +3,7 @@ package jujerr
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/juju/errors"
-	"github.com/loopfz/gadgeto/tonic"
+	"github.com/martinvuyk/gadgeto/tonic"
 )
 
 func ErrHook(c *gin.Context, e error) (int, interface{}) {

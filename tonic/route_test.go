@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	"github.com/loopfz/gadgeto/tonic"
+	"github.com/martinvuyk/gadgeto/tonic"
 )
 
 func TestRoute_GetTags(t *testing.T) {

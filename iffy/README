@@ -33,4 +33,4 @@ func TestFoo(t *testing.T) {
         tester.Run()
 }
 
-For a real-life example, see https://github.com/loopfz/gadgeto/blob/master/tonic/tonic_test.go
+For a real-life example, see https://github.com/martinvuyk/gadgeto/blob/master/tonic/tonic_test.go

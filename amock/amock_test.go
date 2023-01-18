@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/loopfz/gadgeto/amock/foo"
+	"github.com/martinvuyk/gadgeto/amock/foo"
 )
 
 func TestMock(t *testing.T) {

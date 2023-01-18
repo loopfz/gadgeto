@@ -6,13 +6,13 @@ import (
 	"time"
 
 	"github.com/go-gorp/gorp"
-	"github.com/loopfz/gadgeto/zesty"
+	"github.com/martinvuyk/gadgeto/zesty"
 )
 
 // Default database settings.
 const (
-	maxOpenConns    = 5
-	maxIdleConns    = 3
+	maxOpenConns = 5
+	maxIdleConns = 3
 )
 
 // DatabaseConfig represents the configuration used to
