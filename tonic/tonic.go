@@ -25,6 +25,7 @@ const (
 	QueryTag      = "query"
 	PathTag       = "path"
 	HeaderTag     = "header"
+	ContextTag    = "context"
 	EnumTag       = "enum"
 	RequiredTag   = "required"
 	DefaultTag    = "default"
@@ -343,6 +344,26 @@ func extractHeader(c *gin.Context, tag string) (string, []string, error) {
 		return "", nil, fmt.Errorf("missing header parameter: %s", name)
 	}
 	return name, []string{header}, nil
+}
+
+// extractContext is an extractor that operates on the gin.Context
+// of a request.
+func extractContext(c *gin.Context, tag string) (string, []string, error) {
+	name, required, defaultVal, err := parseTagKey(tag)
+	if err != nil {
+		return "", nil, err
+	}
+	context := c.GetString(name)
+
+	// XXX: deprecated, use of "default" tag is preferred
+	if context == "" && defaultVal != "" {
+		return name, []string{defaultVal}, nil
+	}
+	// XXX: deprecated, use of "validate" tag is preferred
+	if required && context == "" {
+		return "", nil, fmt.Errorf("missing header parameter: %s", name)
+	}
+	return name, []string{context}, nil
 }
 
 // Public signature does not expose "required" and "default" because
