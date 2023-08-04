@@ -16,6 +16,7 @@ require (
 	github.com/pires/go-proxyproto v0.6.0
 	github.com/poy/onpar v1.1.2 // indirect
 	github.com/ziutek/mymysql v1.5.4 // indirect
+	sigs.k8s.io/yaml v1.3.0
 )
 
 go 1.13
