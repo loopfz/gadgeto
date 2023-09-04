@@ -239,6 +239,7 @@ func Tags(tags []string) func(*Route) {
 // to bind parameters, to differentiate from errors returned
 // by the handlers.
 type BindError struct {
+	bindHookErr   error
 	validationErr error
 	message       string
 	typ           reflect.Type
@@ -265,6 +266,11 @@ func (be BindError) ValidationErrors() validator.ValidationErrors {
 		return t
 	}
 	return nil
+}
+
+// BindHookError returns the error from the bind process.
+func (be BindError) BindHookError() error {
+	return be.bindHookErr
 }
 
 // An extractorFunc extracts data from a gin context according to
