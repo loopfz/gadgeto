@@ -59,7 +59,7 @@ func ListenAndServe(handler http.Handler, errorHandler func(error), opt ...Liste
 			// delayed listen, store it in the original listener object so any wrapping listener from listenOpt
 			// will have a correct reference
 			listener.Listener = ln
-			if srv.TLSConfig != nil && len(srv.TLSConfig.Certificates) > 0 {
+			if srv.TLSConfig != nil && (len(srv.TLSConfig.Certificates) > 0 || srv.TLSConfig.GetCertificate != nil || srv.TLSConfig.GetConfigForClient != nil) {
 				// ServeTLS without cert files lets listenOpts set srv.TLSConfig.Certificates
 				err = listenOpt.Server.ServeTLS(listenOpt.Listener, "", "")
 			} else {
