@@ -1,9 +1,9 @@
 module github.com/loopfz/gadgeto
 
 require (
-	github.com/gin-gonic/gin v1.6.3
+	github.com/gin-gonic/gin v1.7.0
 	github.com/go-gorp/gorp v2.2.0+incompatible
-	github.com/go-playground/validator/v10 v10.2.0
+	github.com/go-playground/validator/v10 v10.4.1
 	github.com/go-sql-driver/mysql v1.5.0 // indirect
 	github.com/golang/protobuf v1.3.5 // indirect
 	github.com/google/uuid v1.1.1
