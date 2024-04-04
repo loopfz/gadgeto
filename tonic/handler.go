@@ -150,6 +150,15 @@ func RegisterValidation(tagName string, validationFunc validator.Func) error {
 	return validatorObj.RegisterValidation(tagName, validationFunc)
 }
 
+// RegisterValidationCtx does the same as RegisterValidation on accepts a validator.FuncCtx validation
+// allowing context.Context validation support.
+// NOTE: calling this function may instantiate the validator itself.
+// NOTE: this function is not thread safe, since the validator validation registration isn't
+func RegisterValidationCtx(tagName string, validationFuncCtx validator.FuncCtx) error {
+	initValidator()
+	return validatorObj.RegisterValidationCtx(tagName, validationFuncCtx)
+}
+
 // RegisterTagNameFunc registers a function to get alternate names for StructFields.
 //
 // eg. to use the names which have been specified for JSON representations of structs, rather than normal Go field names:
