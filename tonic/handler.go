@@ -150,6 +150,15 @@ func RegisterValidation(tagName string, validationFunc validator.Func) error {
 	return validatorObj.RegisterValidation(tagName, validationFunc)
 }
 
+// RegisterCustomTypeFunc registers a CustomTypeFunc against a number of types
+// on the validator.Validate instance of the package
+// NOTE: calling this function may instantiate the validator itself.
+// NOTE: this method is not thread-safe it is intended that these all be registered prior to any validation
+func RegisterCustomTypeFunc(validationFunc validator.CustomTypeFunc, types ...interface{}) {
+	initValidator()
+	validatorObj.RegisterCustomTypeFunc(validationFunc, types)
+}
+
 // RegisterTagNameFunc registers a function to get alternate names for StructFields.
 //
 // eg. to use the names which have been specified for JSON representations of structs, rather than normal Go field names:
