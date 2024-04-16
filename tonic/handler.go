@@ -49,16 +49,16 @@ func Handler(h interface{}, status int, options ...func(*Route)) gin.HandlerFunc
 	// Wrap Gin handler.
 	f := func(c *gin.Context) {
 		_, ok := c.Get(tonicWantRouteInfos)
+		r := &Route{}
+		for _, opt := range options {
+			opt(r)
+		}
 		if ok {
-			r := &Route{}
 			r.defaultStatusCode = status
 			r.handler = hv
 			r.handlerType = ht
 			r.inputType = in
 			r.outputType = out
-			for _, opt := range options {
-				opt(r)
-			}
 			c.Set(tonicRoutesInfos, r)
 			c.Abort()
 			return
@@ -71,8 +71,14 @@ func Handler(h interface{}, status int, options ...func(*Route)) gin.HandlerFunc
 		// binding.
 		if in != nil {
 			input := reflect.New(in)
+			routeBindHook := r.GetBindHook()
+			if routeBindHook == nil {
+				// use the default bindHook if the route
+				// does not have a custom one
+				routeBindHook = bindHook
+			}
 			// Bind the body with the hook.
-			if err := bindHook(c, input.Interface()); err != nil {
+			if err := routeBindHook(c, input.Interface()); err != nil {
 				handleError(c, BindError{message: err.Error(), typ: in})
 				return
 			}
@@ -116,7 +122,11 @@ func Handler(h interface{}, status int, options ...func(*Route)) gin.HandlerFunc
 			handleError(c, err.(error))
 			return
 		}
-		renderHook(c, status, val)
+		routeRenderHook := r.GetRenderHook()
+		if routeRenderHook == nil {
+			routeRenderHook = renderHook
+		}
+		routeRenderHook(c, status, val)
 	}
 	// Register route in tonic-enabled routes map
 	route := &Route{
