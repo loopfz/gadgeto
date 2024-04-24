@@ -91,6 +91,11 @@ func Handler(h interface{}, status int, options ...func(*Route)) gin.HandlerFunc
 				handleError(c, err)
 				return
 			}
+			// Bind context-keys
+			if err := bind(c, input, ContextTag, extractContext); err != nil {
+				handleError(c, err)
+				return
+			}
 			// validating query and path inputs if they have a validate tag
 			initValidator()
 			args = append(args, input)
