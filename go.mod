@@ -1,4 +1,4 @@
-module github.com/loopfz/gadgeto
+module github.com/jonbango/gadgeto
 
 require (
 	github.com/gin-gonic/gin v1.9.1
