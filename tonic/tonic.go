@@ -243,10 +243,16 @@ type BindError struct {
 	message       string
 	typ           reflect.Type
 	field         string
+	tagValue      string
+	expectedType  string
 }
 
 // Error implements the builtin error interface for BindError.
 func (be BindError) Error() string {
+	if be.tagValue != "" && be.expectedType != "" {
+		return fmt.Sprintf("expected '%s' to be of type %s", be.tagValue, be.expectedType)
+	}
+	
 	if be.field != "" && be.typ != nil {
 		return fmt.Sprintf(
 			"binding error on field '%s' of type '%s': %s",

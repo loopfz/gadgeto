@@ -272,7 +272,7 @@ func bind(c *gin.Context, v reflect.Value, tag string, extract extractor) error 
 				v := reflect.New(field.Type().Elem()).Elem()
 				err = bindStringValue(val, v)
 				if err != nil {
-					return BindError{field: ft.Name, typ: t, message: err.Error()}
+					return BindError{field: ft.Name, typ: t, message: err.Error(), tagValue: tagValue, expectedType: field.Kind().String()}
 				}
 				if kind == reflect.Slice {
 					field.Set(reflect.Append(field, v))
@@ -298,7 +298,7 @@ func bind(c *gin.Context, v reflect.Value, tag string, extract extractor) error 
 		// Fill string value into input field.
 		err = bindStringValue(fieldValues[0], field)
 		if err != nil {
-			return BindError{field: ft.Name, typ: t, message: err.Error()}
+			return BindError{field: ft.Name, typ: t, message: err.Error(), tagValue: tagValue, expectedType: field.Kind().String()}
 		}
 	}
 	return nil
