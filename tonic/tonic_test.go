@@ -35,6 +35,18 @@ func TestMain(m *testing.M) {
 	g.GET("/query", tonic.Handler(queryHandler, 200))
 	g.GET("/query-old", tonic.Handler(queryHandlerOld, 200))
 	g.POST("/body", tonic.Handler(bodyHandler, 200))
+	g.POST("/bodyYAML", tonic.Handler(bodyHandler, 200, func(r *tonic.Route) {
+		r.SetBindHook(func(c *gin.Context, i interface{}) error {
+			if err := c.ShouldBindYAML(i); err != nil {
+				return fmt.Errorf("error parsing request body: %s", err.Error())
+			}
+			return nil
+		})
+		r.SetRenderHook(func(c *gin.Context, statusCode int, payload interface{}) {
+			c.YAML(statusCode, payload)
+		})
+		r.SetResponseMediaType("text/yaml")
+	}))
 
 	r = g
 
@@ -130,6 +142,15 @@ func TestBody(t *testing.T) {
 	tester.Run()
 }
 
+func TestBodyYAML(t *testing.T) {
+
+	tester := iffy.NewTester(t, r)
+
+	tester.AddCall("body", "POST", "/bodyYAML", `param: foo`).Checkers(iffy.ExpectStatus(200), expectStringInBody("param: foo"))
+
+	tester.Run()
+}
+
 func errorHandler(c *gin.Context) error {
 	return errors.New("error")
 }
@@ -190,9 +211,9 @@ func queryHandlerOld(c *gin.Context, in *queryInOld) (*queryInOld, error) {
 }
 
 type bodyIn struct {
-	Param                  string `json:"param" validate:"required"`
-	ParamOptional          string `json:"param-optional"`
-	ValidatedParamOptional string `json:"param-optional-validated" validate:"eq=|eq=foo|gt=10"`
+	Param                  string `json:"param" validate:"required" yaml:"param"`
+	ParamOptional          string `json:"param-optional" yaml:"param-optional"`
+	ValidatedParamOptional string `json:"param-optional-validated" validate:"eq=|eq=foo|gt=10" yaml:"param-optional-validated"`
 }
 
 func bodyHandler(c *gin.Context, in *bodyIn) (*bodyIn, error) {

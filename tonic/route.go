@@ -32,6 +32,18 @@ type Route struct {
 	// outputType is the type of the output object.
 	// This can be nil if the handler use none.
 	outputType reflect.Type
+
+	// the bindHook for this route
+	bindHook BindHook
+
+	// the renderHook for this route
+	renderHook RenderHook
+
+	// the request media type for this route
+	requestMediaType string
+
+	// the response media type for this route
+	responseMediaType string
 }
 
 // GetVerb returns the HTTP verb of the route.
@@ -39,6 +51,30 @@ func (r *Route) GetVerb() string { return r.Method }
 
 // GetPath returns the path of the route.
 func (r *Route) GetPath() string { return r.Path }
+
+// GetRequestMediaType returns the media type of the route.
+func (r *Route) GetRequestMediaType() string { return r.requestMediaType }
+
+// GetResponseMediaType returns the media type of the route.
+func (r *Route) GetResponseMediaType() string { return r.responseMediaType }
+
+// SetRequestMediaType returns the media type of the route.
+func (r *Route) SetRequestMediaType(mt string) { r.requestMediaType = mt }
+
+// SetResponseMediaType returns the media type of the route.
+func (r *Route) SetResponseMediaType(mt string) { r.responseMediaType = mt }
+
+// GetBindHook returns the bind hook of the route.
+func (r *Route) GetBindHook() BindHook { return r.bindHook }
+
+// SetBindHook returns the bind hook of the route.
+func (r *Route) SetBindHook(h BindHook) { r.bindHook = h }
+
+// GetRenderHook returns the bind hook of the route.
+func (r *Route) GetRenderHook() RenderHook { return r.renderHook }
+
+// SetRenderHook returns the bind hook of the route.
+func (r *Route) SetRenderHook(h RenderHook) { r.renderHook = h }
 
 // GetDescription returns the description of the route.
 func (r *Route) GetDescription() string { return r.description }
