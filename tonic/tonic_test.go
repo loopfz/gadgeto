@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/assert/v2"
+
 	"github.com/loopfz/gadgeto/iffy"
 	"github.com/loopfz/gadgeto/tonic"
 )
@@ -128,6 +130,13 @@ func TestBody(t *testing.T) {
 	tester.AddCall("body7", "POST", "/body", `{"param": "foo", "param-optional-validated": "foobarfoobuz"}`).Checkers(iffy.ExpectStatus(200), expectString("param-optional-validated", "foobarfoobuz"))
 
 	tester.Run()
+}
+
+func Test_EnsureIdenticalValidatorReference(t *testing.T) {
+	validatorFirstCall := tonic.GetValidator()
+	validatorSecondCall := tonic.GetValidator()
+
+	assert.Equal(t, validatorFirstCall, validatorSecondCall)
 }
 
 func errorHandler(c *gin.Context) error {
